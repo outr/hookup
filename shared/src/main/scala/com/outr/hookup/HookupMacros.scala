@@ -7,7 +7,7 @@ import scala.concurrent.Future
 import scala.reflect.macros.blackbox
 
 @compileTimeOnly("Enable Macros for expansion")
-object InterfaceMacros {
+object HookupMacros {
   def translator[T](context: blackbox.Context)(t: context.WeakTypeTag[T]): context.Expr[Translator[T]] = {
     import context.universe._
     context.Expr[Translator[T]](

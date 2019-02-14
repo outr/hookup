@@ -10,18 +10,18 @@ import reactify.Channel
 import scala.language.experimental.macros
 import scribe.Execution.global
 
-object Interface extends CoreImplicits {
+object Hookup extends CoreImplicits {
   object Action {
     val MethodRequest: Byte = 1.toByte
     val MethodResponse: Byte = 2.toByte
   }
 
-  def translator[T]: Translator[T] = macro InterfaceMacros.translator[T]
+  def translator[T]: Translator[T] = macro HookupMacros.translator[T]
 
-  def method[I, Params, Result](methodName: String): MethodTranslator[Params, Result] = macro InterfaceMacros.methodRemote[I, Params, Result]
-  def method[I, Params, Result](methodName: String, implementation: I): MethodCaller[Params, Result] = macro InterfaceMacros.methodLocal[I, Params, Result]
-  def create[I]: I with InterfaceSupport = macro InterfaceMacros.createRemote[I]
-  def create[I](implementation: I): I with InterfaceSupport = macro InterfaceMacros.createLocal[I]
+  def method[I, Params, Result](methodName: String): MethodTranslator[Params, Result] = macro HookupMacros.methodRemote[I, Params, Result]
+  def method[I, Params, Result](methodName: String, implementation: I): MethodCaller[Params, Result] = macro HookupMacros.methodLocal[I, Params, Result]
+  def create[I]: I with InterfaceSupport = macro HookupMacros.createRemote[I]
+  def create[I](implementation: I): I with InterfaceSupport = macro HookupMacros.createLocal[I]
 }
 
 trait InterfaceSupport {
@@ -47,7 +47,7 @@ trait InterfaceSupport {
   input.attach { bb =>
     // Determine action
     bb.get() match {
-      case Interface.Action.MethodRequest => {
+      case Hookup.Action.MethodRequest => {
         val requestId = bb.getLong
         val methodNameLength = bb.getInt
         val methodNameBytes = new Array[Byte](methodNameLength)
@@ -62,7 +62,7 @@ trait InterfaceSupport {
           scribe.error(s"MethodRequest failure for $requestId, method: $methodName", t)
         }
       }
-      case Interface.Action.MethodResponse => {
+      case Hookup.Action.MethodResponse => {
         val id = bb.getLong
         val requestId = bb.getLong
         try {
@@ -86,7 +86,7 @@ trait InterfaceSupport {
     // Action + ID + Method Name + Message Length
     val length = 1 + 8 + 4 + methodNameBytes.length + messageLength
     val bb = ByteBuffer.allocate(length)
-    bb.put(Interface.Action.MethodRequest)
+    bb.put(Hookup.Action.MethodRequest)
     bb.putLong(id)
     bb.putInt(methodNameBytes.length)
     bb.put(methodNameBytes)
@@ -97,7 +97,7 @@ trait InterfaceSupport {
     // Action + ID + Request ID + Message Length
     val length = 1 + 8 + 8 + messageLength
     val bb = ByteBuffer.allocate(length)
-    bb.put(Interface.Action.MethodResponse)
+    bb.put(Hookup.Action.MethodResponse)
     bb.putLong(id)
     bb.putLong(requestId)
     bb

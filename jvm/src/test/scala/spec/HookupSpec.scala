@@ -1,33 +1,33 @@
 package spec
 
-import com.outr.hookup.Interface
+import com.outr.hookup.Hookup
 import com.outr.hookup.translate.Translator
 import org.scalatest.{AsyncWordSpec, Matchers}
 
 import scala.concurrent.Future
 
-class InterfaceSpec extends AsyncWordSpec with Matchers {
-  implicit val userTranslator: Translator[User] = Interface.translator[User]
+class HookupSpec extends AsyncWordSpec with Matchers {
+  implicit val userTranslator: Translator[User] = Hookup.translator[User]
 
   "Interface" should {
     "properly translate using a MethodTranslator" in {
-      val method = Interface.method[TestInterface1, String, String]("reverse")
+      val method = Hookup.method[TestInterface1, String, String]("reverse")
       val bb = method.encode("Hello, World!")()
       bb.flip()
       method.decode(bb) should be("Hello, World!")
     }
     "properly call user a MethodCaller" in {
-      val method = Interface.method[TestInterface1, String, String]("reverse", Test1)
+      val method = Hookup.method[TestInterface1, String, String]("reverse", Test1)
       method.invoke("Hello, World!").map { result =>
         result should be("!dlroW ,olleH")
       }
     }
     "properly follow the entire cycle" in {
-      val remote = Interface.method[TestInterface1, String, String]("reverse")
+      val remote = Hookup.method[TestInterface1, String, String]("reverse")
       val bb1 = remote.encode("Hello, World!")()
       bb1.flip()
 
-      val local = Interface.method[TestInterface1, String, String]("reverse", Test1)
+      val local = Hookup.method[TestInterface1, String, String]("reverse", Test1)
       val params = local.decode(bb1)
       local.invoke(params).map { result =>
         val bb2 = local.encode(result)()
@@ -37,8 +37,8 @@ class InterfaceSpec extends AsyncWordSpec with Matchers {
       }
     }
     "properly test a custom implementation" in {
-      val local = Interface.create[TestInterface1]
-      val remote = Interface.create[TestInterface1](Test1)
+      val local = Hookup.create[TestInterface1]
+      val remote = Hookup.create[TestInterface1](Test1)
 
       // TODO: simplify things with a ByteBufferBuilder
 
