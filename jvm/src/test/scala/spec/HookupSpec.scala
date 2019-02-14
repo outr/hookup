@@ -1,6 +1,6 @@
 package spec
 
-import com.outr.hookup.Hookup
+import com.outr.hookup.{Hookup, server}
 import com.outr.hookup.translate.Translator
 import org.scalatest.{AsyncWordSpec, Matchers}
 
@@ -40,42 +40,47 @@ class HookupSpec extends AsyncWordSpec with Matchers {
       val local = Hookup.create[TestInterface1]
       val remote = Hookup.create[TestInterface1](Test1)
 
-      // TODO: simplify things with a ByteBufferBuilder
-
-      local.output.attach { bb =>
-        scribe.info("Local Output -> Remote Input")
-        remote.input := bb
-      }
-      remote.output.attach { bb =>
-        scribe.info("Remote Output -> Local Input")
-        local.input := bb
-      }
-      local.input.on {
-        scribe.info("Local Input")
-      }
-      remote.input.on {
-        scribe.info("Remote Input")
-      }
+      Hookup.connect.direct(local, remote)
 
       local.reverse("Hello, World!").map { result =>
         result should be("!dlroW ,olleH")
       }
     }
+    "properly text a client / server implementation" in {
+      val client = Hookup.client[CommunicationInterface, ClientInterface]
+      val server = Hookup.server[CommunicationInterface, ServerInterface]
+
+      Hookup.connect.direct(client, server)
+
+      client.reverse("Hello, World!").map { result =>
+        result should be("!dlroW ,olleH")
+      }
+    }
   }
-}
 
-trait TestInterface1 {
-  def reverse(value: String): Future[String]
+  trait TestInterface1 {
+    def reverse(value: String): Future[String]
 
-  def createUser(name: String, age: Int, city: Option[String]): Future[User]
-}
-
-object Test1 extends TestInterface1 {
-  override def reverse(value: String): Future[String] = Future.successful(value.reverse)
-
-  override def createUser(name: String, age: Int, city: Option[String]): Future[User] = Future.successful {
-    User(name, age, city)
+    def createUser(name: String, age: Int, city: Option[String]): Future[User]
   }
-}
 
-case class User(name: String, age: Int, city: Option[String])
+  object Test1 extends TestInterface1 {
+    override def reverse(value: String): Future[String] = Future.successful(value.reverse)
+
+    override def createUser(name: String, age: Int, city: Option[String]): Future[User] = Future.successful {
+      User(name, age, city)
+    }
+  }
+
+  case class User(name: String, age: Int, city: Option[String])
+
+  trait CommunicationInterface {
+    @server def reverse(value: String): Future[String]
+  }
+
+  trait ServerInterface extends CommunicationInterface {
+    override def reverse(value: String): Future[String] = Future.successful(value.reverse)
+  }
+
+  trait ClientInterface extends CommunicationInterface
+}

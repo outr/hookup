@@ -8,6 +8,28 @@ import scala.reflect.macros.blackbox
 
 @compileTimeOnly("Enable Macros for expansion")
 object HookupMacros {
+  def client[Interface, Implementation](context: blackbox.Context)
+                                       (implicit interface: context.WeakTypeTag[Interface],
+                                        implementation: context.WeakTypeTag[Implementation]): context.Expr[Interface with Implementation with HookupSupport] = {
+    lookupMethods(context)(implementation.tpe, unimplemented = true).foreach { m =>
+      val annotations = m.annotations ::: m.overrides.flatMap(_.annotations)
+      assert(annotations.exists(_.toString == "com.outr.hookup.server"), s"${m.fullName} is not implemented and isn't annotated as a @server method")
+    }
+
+    create[Interface](context)(List(implementation.tpe), Nil)(interface).asInstanceOf[context.Expr[Interface with Implementation with HookupSupport]]
+  }
+
+  def server[Interface, Implementation](context: blackbox.Context)
+                                       (implicit interface: context.WeakTypeTag[Interface],
+                                                 implementation: context.WeakTypeTag[Implementation]): context.Expr[Interface with Implementation with HookupSupport] = {
+    lookupMethods(context)(implementation.tpe, unimplemented = true).foreach { m =>
+      val annotations = m.annotations ::: m.overrides.flatMap(_.annotations)
+      assert(annotations.exists(_.toString == "com.outr.hookup.client"), s"${m.fullName} is not implemented and isn't annotated as a @client method")
+    }
+
+    create[Interface](context)(List(implementation.tpe), Nil)(interface).asInstanceOf[context.Expr[Interface with Implementation with HookupSupport]]
+  }
+
   def translator[T](context: blackbox.Context)(t: context.WeakTypeTag[T]): context.Expr[Translator[T]] = {
     import context.universe._
     context.Expr[Translator[T]](
@@ -190,18 +212,22 @@ object HookupMacros {
     val implementationMethodsMap = implementations.flatMap(s => lookupMethods(context)(s.tpe, unimplemented = false).map(_ -> s)).toMap
     val implementationMethods = implementationMethodsMap.keys.toList
     val extraMethods = interfaceMethods ::: implementationMethods
-    val (implementedMethods, unimplementedMethods) = methods.partition { s =>
-      val methodName = s.name.toString
-      extraMethods.exists { es =>
-        es.name.toString == methodName && es.typeSignature.toString == s.typeSignature.toString
+
+    def isMethodIn(method: Symbol, methods: List[Symbol]): Boolean = {
+      val methodName = method.name.toString
+      methods.exists { m =>
+        m.name.toString == methodName && m.typeSignature.toString == method.typeSignature.toString
       }
     }
+
+    val (implementedMethods, unimplementedMethods) = methods.partition(isMethodIn(_, extraMethods))
     val (methodCallers, definedMethods, callerMapping) = implementedMethods.map { s =>
       val methodName = s.name.toString
-      val implMethod = implementationMethods.find { es =>
+      val implMethod = (implementationMethods ::: interfaceMethods).find { es =>
         es.name.toString == methodName && es.typeSignature.toString == s.typeSignature.toString
       }.getOrElse(context.abort(context.enclosingPosition, s"Unable to find defined method: $s"))
-      val impl = implementationMethodsMap.getOrElse(implMethod, context.abort(context.enclosingPosition, s"Unable to find implementation for: $implMethod"))
+      val impl = implementationMethodsMap
+        .getOrElse(implMethod, q"self")
       val args = s.typeSignature.paramLists.headOption.getOrElse(Nil)
       val argNames = args.map(_.name.toTermName)
       val argTypes = args.map { arg =>
@@ -214,21 +240,22 @@ object HookupMacros {
       val callerName = TermName(callerNameString)
       val caller = methodCaller(context)(s, impl)(i)
       val definedCaller = q"val $callerName = $caller"
-      val definedMethod = q"""
-         override def ${s.name.toTermName}(..$params): ${s.typeSignature.resultType} = {
-           $impl.${s.name.toTermName}(..$params)
-         }
-       """
+      val definedMethod = if (!isMethodIn(s, interfaceMethods)) {
+        q"""
+          override def ${s.name.toTermName}(..$params): ${s.typeSignature.resultType} = {
+            $impl.${s.name.toTermName}(..$params)
+          }
+        """
+      } else {
+        q""
+      }
       val mapping = q"$methodName -> $callerName.asInstanceOf[com.outr.hookup.translate.MethodCaller[Any, Any]]"
       (definedCaller, definedMethod, mapping)
     } match {
       case l => (l.map(_._1), l.map(_._2), l.map(_._3))
     }
 
-//    val mixIns: List[context.universe.Tree] = interfaces.map { t =>
-//      q" with $t"
-//    }
-
+    val mixIns: List[context.universe.Type] = typeOf[com.outr.hookup.HookupSupport] :: interfaces
     val methodTranslators = unimplementedMethods.map { m =>
       val translatorName = TermName(s"${m.name.decodedName}Translator")
       val translator = methodTranslator(context)(m, i)
@@ -263,14 +290,14 @@ object HookupMacros {
 
     val expr = context.Expr[I with HookupSupport](
       q"""
-           new $i with com.outr.hookup.HookupSupport {
+         new $i with ..$mixIns { self =>
              ..$methodCallers
 
              ..$methodTranslators
 
              ..$methodImplementations
 
-             override val methodMap = Map[String,com.outr.hookup.translate.MethodCaller[Any,Any]](..$callerMapping)
+             val methodMap = Map[String,com.outr.hookup.translate.MethodCaller[Any,Any]](..$callerMapping)
 
              ..$definedMethods
            }
