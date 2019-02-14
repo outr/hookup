@@ -2,7 +2,7 @@ package com.outr.hookup.translate
 
 import java.nio.ByteBuffer
 
-import com.outr.hookup.InterfaceSupport
+import com.outr.hookup.HookupSupport
 
 import scala.concurrent.Future
 import scribe.Execution.global
@@ -11,7 +11,7 @@ trait MethodCaller[Params, Result] {
   def paramsDecoder: Decoder[Params]
   def resultEncoder: Encoder[Result]
 
-  def execute(support: InterfaceSupport, requestId: Long, bb: ByteBuffer): Future[ByteBuffer] = {
+  def execute(support: HookupSupport, requestId: Long, bb: ByteBuffer): Future[ByteBuffer] = {
     val params = decode(bb)
     invoke(params).map { result =>
       val id = support.nextId()

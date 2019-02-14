@@ -20,11 +20,11 @@ object Hookup extends CoreImplicits {
 
   def method[I, Params, Result](methodName: String): MethodTranslator[Params, Result] = macro HookupMacros.methodRemote[I, Params, Result]
   def method[I, Params, Result](methodName: String, implementation: I): MethodCaller[Params, Result] = macro HookupMacros.methodLocal[I, Params, Result]
-  def create[I]: I with InterfaceSupport = macro HookupMacros.createRemote[I]
-  def create[I](implementation: I): I with InterfaceSupport = macro HookupMacros.createLocal[I]
+  def create[I]: I with HookupSupport = macro HookupMacros.createRemote[I]
+  def create[I](implementation: I): I with HookupSupport = macro HookupMacros.createLocal[I]
 }
 
-trait InterfaceSupport {
+trait HookupSupport {
   /**
     * Called when external requests are made to invoke a local method or when a response is coming back from a remote
     * method invocation.

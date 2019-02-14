@@ -88,7 +88,7 @@ object HookupMacros {
 
     context.Expr[MethodTranslator[Params, Result]](q"""
        import _root_.com.outr.hookup._
-       import _root_.com.outr.hookup.Interface._
+       import _root_.com.outr.hookup.Hookup._
        import _root_.com.outr.hookup.translate._
        import _root_.java.nio.ByteBuffer
 
@@ -152,7 +152,7 @@ object HookupMacros {
     context.Expr[MethodCaller[Params, Result]](
       q"""
          import _root_.com.outr.hookup._
-         import _root_.com.outr.hookup.Interface._
+         import _root_.com.outr.hookup.Hookup._
          import _root_.com.outr.hookup.translate._
          import _root_.java.nio.ByteBuffer
          import _root_.scala.concurrent.Future
@@ -182,7 +182,7 @@ object HookupMacros {
 
   def create[I](context: blackbox.Context)
                (interfaces: List[context.Type], implementations: List[context.Tree])
-               (implicit i: context.WeakTypeTag[I]): context.Expr[I with InterfaceSupport] = {
+               (implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
     import context.universe._
 
     val methods = lookupMethods(context)(i.tpe, unimplemented = true)
@@ -261,9 +261,9 @@ object HookupMacros {
        """
     }
 
-    val expr = context.Expr[I with InterfaceSupport](
+    val expr = context.Expr[I with HookupSupport](
       q"""
-           new $i with com.outr.hookup.InterfaceSupport {
+           new $i with com.outr.hookup.HookupSupport {
              ..$methodCallers
 
              ..$methodTranslators
@@ -280,12 +280,12 @@ object HookupMacros {
 
   def createLocal[I](context: blackbox.Context)
                     (implementation: context.Expr[I])
-                    (implicit i: context.WeakTypeTag[I]): context.Expr[I with InterfaceSupport] = {
+                    (implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
     create[I](context)(Nil, List(implementation.tree))(i)
   }
 
   def createRemote[I](context: blackbox.Context)
-                     (implicit i: context.WeakTypeTag[I]): context.Expr[I with InterfaceSupport] = {
+                     (implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
     create[I](context)(Nil, Nil)(i)
   }
 }
