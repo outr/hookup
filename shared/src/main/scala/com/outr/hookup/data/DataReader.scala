@@ -1,5 +1,7 @@
 package com.outr.hookup.data
 
+import java.nio.ByteBuffer
+
 trait DataReader {
   def boolean(): Boolean
   def byte(): Byte
@@ -30,5 +32,26 @@ object DataReader {
       bb.get(bytes)
       bytes
     }
+  }
+
+  def apply(blocks: List[DataBlock]): DataReader = new DataReader {
+    private var queued = blocks
+
+    private def get[B <: DataBlock]: B = synchronized {
+      val head = queued.head.asInstanceOf[B]
+      queued = queued.tail
+      head
+    }
+
+    override def boolean(): Boolean = get[BooleanData].value
+    override def byte(): Byte = get[ByteData].value
+    override def char(): Char = get[CharData].value
+    override def short(): Short = get[ShortData].value
+    override def int(): Int = get[IntData].value
+    override def long(): Long = get[LongData].value
+    override def float(): Float = get[FloatData].value
+    override def double(): Double = get[DoubleData].value
+    override def string(): String = get[StringData].value
+    override def array(): Array[Byte] = get[ArrayData].array
   }
 }
