@@ -1,7 +1,6 @@
 package com.outr.hookup
 
-import java.nio.ByteBuffer
-
+import com.outr.hookup.data.{DataReader, DataWriter}
 import reactify.Channel
 
 trait HookupIO {
@@ -11,12 +10,12 @@ trait HookupIO {
     *
     * This channel is monitored internally.
     */
-  val input: Channel[ByteBuffer] = Channel[ByteBuffer]
+  val input: Channel[DataReader] = Channel[DataReader]
 
   /**
     * Called when a local method interface is invoked that must be executed remotely.
     *
     * This channel should be monitored by the external implementation to transfer to the input of the remote interface.
     */
-  val output: Channel[ByteBuffer] = Channel[ByteBuffer]
+  val output: Channel[DataWriter] = Channel[DataWriter]
 }
