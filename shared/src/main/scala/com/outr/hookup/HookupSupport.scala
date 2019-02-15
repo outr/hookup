@@ -9,6 +9,8 @@ import reactify.Channel
 import scribe.Execution.global
 
 trait HookupSupport {
+  def interfaceName: String
+
   /**
     * Called when external requests are made to invoke a local method or when a response is coming back from a remote
     * method invocation.

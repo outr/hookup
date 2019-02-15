@@ -40,6 +40,10 @@ class HookupSpec extends AsyncWordSpec with Matchers {
       val local = Hookup.create[TestInterface1]
       val remote = Hookup.create[TestInterface1](Test1)
 
+      local.interfaceName should be("spec.HookupSpec.TestInterface1")
+      remote.interfaceName should be("spec.HookupSpec.TestInterface1")
+      local.hashCode() should be(remote.hashCode())
+
       Hookup.connect.direct(local, remote)
 
       local.reverse("Hello, World!").map { result =>

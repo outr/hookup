@@ -291,15 +291,19 @@ object HookupMacros {
     val expr = context.Expr[I with HookupSupport](
       q"""
          new $i with ..$mixIns { self =>
+             override val interfaceName: String = ${i.tpe.typeSymbol.fullName}
+
              ..$methodCallers
 
              ..$methodTranslators
 
              ..$methodImplementations
 
-             val methodMap = Map[String,com.outr.hookup.translate.MethodCaller[Any,Any]](..$callerMapping)
+             override val methodMap = Map[String,com.outr.hookup.translate.MethodCaller[Any,Any]](..$callerMapping)
 
              ..$definedMethods
+
+             override def hashCode(): Int = interfaceName.hashCode()
            }
          """)
     expr
