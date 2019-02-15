@@ -1,6 +1,6 @@
 package spec
 
-import com.outr.hookup.{Hookup, server}
+import com.outr.hookup.{Hookup, HookupManager, HookupSupport, server}
 import com.outr.hookup.translate.Translator
 import org.scalatest.{AsyncWordSpec, Matchers}
 
@@ -60,6 +60,16 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         result should be("!dlroW ,olleH")
       }
     }
+    "properly create HookupManagers and communicate between them" in {
+      val local = HookupManager.create[TestManager]
+      val remote = HookupManager.server[TestManager].create()
+
+      Hookup.connect.direct(local, remote)
+
+      local.communication.reverse("Hello, World!").map { result =>
+        result should be("!dlroW ,olleH")
+      }
+    }
   }
 
   trait TestInterface1 {
@@ -87,4 +97,8 @@ class HookupSpec extends AsyncWordSpec with Matchers {
   }
 
   trait ClientInterface extends CommunicationInterface
+
+  trait TestManager extends HookupManager {
+    val communication: CommunicationInterface with HookupSupport = auto[CommunicationInterface]
+  }
 }

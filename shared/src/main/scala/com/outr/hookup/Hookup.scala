@@ -20,7 +20,7 @@ object Hookup extends CoreImplicits {
   def server[Interface, Implementation]: Interface with Implementation with HookupSupport = macro HookupMacros.server[Interface, Implementation]
 
   object connect {
-    def direct(first: HookupSupport, second: HookupSupport): Unit = {
+    def direct(first: HookupIO, second: HookupIO): Unit = {
       first.output.attach { bb =>
         second.input := bb
       }
