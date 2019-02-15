@@ -1,5 +1,6 @@
 package com.outr.hookup
 
+import com.outr.hookup.data.DataReader
 import com.outr.hookup.translate.{CoreImplicits, MethodCaller, MethodTranslator, Translator}
 
 import scala.language.experimental.macros
@@ -21,11 +22,11 @@ object Hookup extends CoreImplicits {
 
   object connect {
     def direct(first: HookupIO, second: HookupIO): Unit = {
-      first.output.attach { bb =>
-        second.input := bb
+      first.output.attach { writer =>
+        second.input := DataReader(writer.toByteBuffer)
       }
-      second.output.attach { bb =>
-        first.input := bb
+      second.output.attach { writer =>
+        first.input := DataReader(writer.toByteBuffer)
       }
     }
   }

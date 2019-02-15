@@ -1,8 +1,7 @@
 package com.outr.hookup.translate
 
-import java.nio.ByteBuffer
+import com.outr.hookup.data.DataWriter
 
 trait Encoder[Value] {
-  def write(value: Value, bb: ByteBuffer): Unit
-  def length(value: Value): Int
+  def write(value: Value, writer: DataWriter): DataWriter
 }

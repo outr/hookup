@@ -4,42 +4,38 @@ import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
+import com.outr.hookup.data.{DataReader, DataWriter}
 import com.outr.hookup.translate.MethodCaller
-import reactify.Channel
 import scribe.Execution.global
 
 trait HookupSupport extends HookupIO {
   def interfaceName: String
 
   private val idGenerator: AtomicLong = new AtomicLong(0L)
-  protected val methodFutures = new ConcurrentHashMap[Long, ByteBuffer => Unit]()
+  protected val methodFutures = new ConcurrentHashMap[Long, DataReader => Unit]()
   protected val methodMap: Map[String, MethodCaller[Any, Any]]
 
-  input.attach { bb =>
+  input.attach { reader =>
     // Determine action
-    bb.get() match {
+    reader.byte() match {
       case Hookup.Action.MethodRequest => {
-        val requestId = bb.getLong
-        val methodNameLength = bb.getInt
-        val methodNameBytes = new Array[Byte](methodNameLength)
-        bb.get(methodNameBytes)
-        val methodName = new String(methodNameBytes, "UTF-8")
+        val requestId = reader.long()
+        val methodName = reader.string()
         val methodHandler = methodMap.getOrElse(methodName, throw new RuntimeException(s"No method found by name in method request: $methodName"))
-        methodHandler.execute(this, requestId, bb).map { bb =>
-          bb.flip()
-          output := bb
+        methodHandler.execute(this, requestId, reader, DataWriter.empty).map { writer =>
+          output := writer
         }.failed.foreach { t =>
           // TODO: send back MethodResponseError
           scribe.error(s"MethodRequest failure for $requestId, method: $methodName", t)
         }
       }
       case Hookup.Action.MethodResponse => {
-        val id = bb.getLong
-        val requestId = bb.getLong
+        val id = reader.long()
+        val requestId = reader.long()
         try {
           val method = Option(methodFutures.get(requestId))
             .getOrElse(throw new RuntimeException(s"No request id for received MethodResponse: $requestId (id: $id)"))
-          method(bb)
+          method(reader)
         } catch {
           case t: Throwable => {
             // TODO: Better error handling

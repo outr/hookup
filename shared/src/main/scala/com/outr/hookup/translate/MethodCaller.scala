@@ -1,8 +1,7 @@
 package com.outr.hookup.translate
 
-import java.nio.ByteBuffer
-
 import com.outr.hookup.HookupSupport
+import com.outr.hookup.data.{DataReader, DataWriter}
 
 import scala.concurrent.Future
 import scribe.Execution.global
@@ -11,22 +10,20 @@ trait MethodCaller[Params, Result] {
   def paramsDecoder: Decoder[Params]
   def resultEncoder: Encoder[Result]
 
-  def execute(support: HookupSupport, requestId: Long, bb: ByteBuffer): Future[ByteBuffer] = {
-    val params = decode(bb)
+  def execute(support: HookupSupport,
+              requestId: Long,
+              reader: DataReader,
+              writer: DataWriter): Future[DataWriter] = {
+    val params = decode(reader)
     invoke(params).map { result =>
       val id = support.nextId()
-      encode(result)(support.prepareResponseFunction(id, requestId))
+      encode(result, writer.long(id))
     }
   }
 
   def invoke(params: Params): Future[Result]
 
-  def decode(bb: ByteBuffer): Params = paramsDecoder.read(bb)
+  def decode(reader: DataReader): Params = paramsDecoder.read(reader)
 
-  def encode(result: Result)(prepare: Int => ByteBuffer = length => ByteBuffer.allocate(length)): ByteBuffer = {
-    val length = resultEncoder.length(result)
-    val bb = prepare(length)
-    resultEncoder.write(result, bb)
-    bb
-  }
+  def encode(result: Result, writer: DataWriter): DataWriter = resultEncoder.write(result, writer)
 }

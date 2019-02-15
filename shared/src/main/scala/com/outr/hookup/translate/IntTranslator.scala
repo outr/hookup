@@ -1,11 +1,9 @@
 package com.outr.hookup.translate
 
-import java.nio.ByteBuffer
+import com.outr.hookup.data.{DataReader, DataWriter}
 
 object IntTranslator extends Translator[Int] {
-  override def write(value: Int, bb: ByteBuffer): Unit = bb.putInt(value)
+  override def read(reader: DataReader): Int = reader.int()
 
-  override def length(value: Int): Int = 4
-
-  override def read(bb: ByteBuffer): Int = bb.getInt
+  override def write(value: Int, writer: DataWriter): DataWriter = writer.int(value)
 }

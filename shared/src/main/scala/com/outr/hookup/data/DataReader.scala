@@ -25,7 +25,7 @@ object DataReader {
     override def long(): Long = bb.getLong
     override def float(): Float = bb.getFloat
     override def double(): Double = bb.getDouble
-    override def string(): String = new String(array())
+    override def string(): String = new String(array(), "UTF-8")
     override def array(): Array[Byte] = {
       val length = int()
       val bytes = new Array[Byte](length)

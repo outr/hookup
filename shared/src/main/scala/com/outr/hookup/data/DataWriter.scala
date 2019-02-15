@@ -33,6 +33,11 @@ case class DataWriter(blocks: List[DataBlock] = Nil) extends DataBlock {
   def toByteBuffer: ByteBuffer = {
     val bb = ByteBuffer.allocate(length)
     write(bb)
+    bb.flip()
     bb
   }
+}
+
+object DataWriter {
+  lazy val empty: DataWriter = DataWriter()
 }
