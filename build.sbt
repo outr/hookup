@@ -33,6 +33,7 @@ val scalaTestVersion = "3.0.5"
 
 lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
   .settings(
+    name := "hookup",
     resolvers += "Artima Maven Repository" at "http://repo.artima.com/releases",
     libraryDependencies ++= Seq(
       "com.outr" %%% "profig" % profigVersion,
