@@ -19,6 +19,7 @@ object Hookup extends CoreImplicits {
   def create[I](implementation: I): I with HookupSupport = macro HookupMacros.createLocal[I]
   def client[Interface, Implementation]: Interface with Implementation with HookupSupport = macro HookupMacros.client[Interface, Implementation]
   def server[Interface, Implementation]: Interface with Implementation with HookupSupport = macro HookupMacros.server[Interface, Implementation]
+  def auto[Interface]: AutoHookup[Interface with HookupSupport] = macro HookupMacros.auto[Interface]
 
   object connect {
     def direct(first: HookupIO, second: HookupIO): Unit = {
@@ -39,3 +40,5 @@ object Hookup extends CoreImplicits {
     }
   }
 }
+
+case class AutoHookup[Interface <: HookupSupport](client: Option[Interface], server: Option[Interface])

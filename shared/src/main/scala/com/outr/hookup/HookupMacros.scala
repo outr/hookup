@@ -8,6 +8,31 @@ import scala.reflect.macros.blackbox
 
 @compileTimeOnly("Enable Macros for expansion")
 object HookupMacros {
+  def auto[Interface](context: blackbox.Context)
+                     (implicit interface: context.WeakTypeTag[Interface]): context.Expr[AutoHookup[Interface with HookupSupport]] = {
+    import context.universe._
+
+    val interfaceClass = interface.tpe.typeSymbol.asClass
+
+    def lookUp(prefix: String): context.Expr[Option[Interface with HookupSupport]] = {
+      val className = s"${interfaceClass.owner.fullName}.$prefix${interfaceClass.name.decodedName}"
+      val tree = try {
+        val clazz = context.mirror.staticClass(className)
+        q"Some(${create[Interface](context)(List(clazz.toType), Nil)(interface)})"
+      } catch {
+        case _: ScalaReflectionException => q"None"
+      }
+      context.Expr[Option[Interface with HookupSupport]](tree)
+    }
+
+    context.Expr[AutoHookup[Interface with HookupSupport]](
+      q"""
+         import com.outr.hookup._
+
+         AutoHookup[$interface with HookupSupport](${lookUp("Client")}, ${lookUp("Server")})
+       """)
+  }
+
   def client[Interface, Implementation](context: blackbox.Context)
                                        (implicit interface: context.WeakTypeTag[Interface],
                                         implementation: context.WeakTypeTag[Implementation]): context.Expr[Interface with Implementation with HookupSupport] = {
