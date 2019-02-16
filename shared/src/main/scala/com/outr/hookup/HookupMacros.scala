@@ -109,7 +109,7 @@ object HookupMacros {
     val argTypes = args.map(_.typeSignature.resultType)
     val resultType = method.typeSignature.resultType.typeArgs.head
     val writeArgs = argTypes.length match {
-      case 0 => List(q"()")
+      case 0 => List(q"writer")
       case 1 => List(q"implicitly[Encoder[${argTypes.head}]].write(value, writer)")
       case _ => argTypes.zipWithIndex.map {
         case (t, index) => {
@@ -154,7 +154,7 @@ object HookupMacros {
     val resultType = method.typeSignature.resultType.typeArgs.head
 
     val readArgs = argTypes.length match {
-      case 0 => List(q"")
+      case 0 => List(q"()")
       case 1 => List(q"implicitly[Decoder[${argTypes.head}]].read(reader)")
       case _ => argTypes.map { t =>
         q"implicitly[Decoder[$t]].read(reader)"
@@ -168,7 +168,8 @@ object HookupMacros {
       }
     }
     val invoke = argTypes.length match {
-      case 0 => q"override def invoke(): Future[$resultType] = $implementation.$method()"
+      case 0 if method.typeSignature.paramLists.isEmpty => q"override def invoke(value: Unit): Future[$resultType] = $implementation.$method"
+      case 0 => q"override def invoke(value: Unit): Future[$resultType] = $implementation.$method()"
       case 1 => q"override def invoke(value: ${argTypes.head}): Future[$resultType] = $implementation.$method(value)"
       case _ =>
         q"""

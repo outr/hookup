@@ -1,5 +1,7 @@
 package spec
 
+import java.util.UUID
+
 import com.outr.hookup.data.{DataReader, DataWriter}
 import com.outr.hookup.{Hookup, HookupManager, HookupSupport, server}
 import com.outr.hookup.translate.Translator
@@ -83,6 +85,16 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         result should be("!dlroW ,olleH")
       }
     }
+    "properly create HookupManagers and communicate between them with secondary communication" in {
+      val local = HookupManager.client[TestManager]
+      val remote = HookupManager.server[TestManager].create()
+
+      Hookup.connect.direct(local, remote)
+
+      local.comm2.uuid.map { result =>
+        result should have size 36
+      }
+    }
   }
 }
 
@@ -112,8 +124,19 @@ trait ServerCommunicationInterface extends CommunicationInterface {
 
 trait ClientCommunicationInterface extends CommunicationInterface
 
+trait Comm2 {
+  @server def uuid: Future[String]
+}
+
+trait ServerComm2 extends Comm2 {
+  override def uuid: Future[String] = Future.successful(UUID.randomUUID().toString)
+}
+
+trait ClientComm2 extends Comm2
+
 trait TestManager extends HookupManager {
   val communication: CommunicationInterface with HookupSupport = {
     register(Hookup.auto[CommunicationInterface])
   }
+  val comm2: Comm2 with HookupSupport = register(Hookup.auto[Comm2])
 }

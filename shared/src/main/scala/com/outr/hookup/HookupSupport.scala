@@ -15,7 +15,6 @@ trait HookupSupport extends HookupIO {
   protected val methodMap: Map[String, MethodCaller[Any, Any]]
 
   input.attach { reader =>
-    scribe.info(s"Reader: $reader")
     // Determine action
     reader.byte() match {
       case Hookup.Action.MethodRequest => {
