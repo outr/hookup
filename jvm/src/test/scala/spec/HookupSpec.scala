@@ -1,6 +1,7 @@
 package spec
 
-import com.outr.hookup.{Hookup, HookupManager, HookupSupport, server}
+import com.outr.hookup.data.{DataReader, DataWriter}
+import com.outr.hookup.{Hookup, HookupSupport, server}
 import com.outr.hookup.translate.Translator
 import org.scalatest.{AsyncWordSpec, Matchers}
 
@@ -12,9 +13,9 @@ class HookupSpec extends AsyncWordSpec with Matchers {
   "Interface" should {
     "properly translate using a MethodTranslator" in {
       val method = Hookup.method[TestInterface1, String, String]("reverse")
-      val bb = method.encode("Hello, World!")()
-      bb.flip()
-      method.decode(bb) should be("Hello, World!")
+      val writer = method.encode("Hello, World!", DataWriter.empty)
+      val reader = DataReader(writer.blocks)
+      method.decode(reader) should be("Hello, World!")
     }
     "properly call user a MethodCaller" in {
       val method = Hookup.method[TestInterface1, String, String]("reverse", Test1)
@@ -24,15 +25,13 @@ class HookupSpec extends AsyncWordSpec with Matchers {
     }
     "properly follow the entire cycle" in {
       val remote = Hookup.method[TestInterface1, String, String]("reverse")
-      val bb1 = remote.encode("Hello, World!")()
-      bb1.flip()
+      val writer = remote.encode("Hello, World!", DataWriter.empty)
 
       val local = Hookup.method[TestInterface1, String, String]("reverse", Test1)
-      val params = local.decode(bb1)
+      val params = local.decode(DataReader(writer.blocks))
       local.invoke(params).map { result =>
-        val bb2 = local.encode(result)()
-        bb2.flip()
-        val finalResult = remote.decode(bb2)
+        val writer2 = local.encode(result, DataWriter.empty)
+        val finalResult = remote.decode(DataReader(writer2.blocks))
         finalResult should be("!dlroW ,olleH")
       }
     }
@@ -50,6 +49,20 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         result should be("!dlroW ,olleH")
       }
     }
+    "properly test a custom implementation using ByteBuffer encoding/decoding" in {
+      val local = Hookup.create[TestInterface1]
+      val remote = Hookup.create[TestInterface1](Test1)
+
+      local.interfaceName should be("spec.HookupSpec.TestInterface1")
+      remote.interfaceName should be("spec.HookupSpec.TestInterface1")
+      local.hashCode() should be(remote.hashCode())
+
+      Hookup.connect.bytes(local, remote)
+
+      local.reverse("Hello, World!").map { result =>
+        result should be("!dlroW ,olleH")
+      }
+    }
     "properly text a client / server implementation" in {
       val client = Hookup.client[CommunicationInterface, ClientInterface]
       val server = Hookup.server[CommunicationInterface, ServerInterface]
@@ -60,16 +73,16 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         result should be("!dlroW ,olleH")
       }
     }
-    "properly create HookupManagers and communicate between them" in {
-      val local = HookupManager.create[TestManager]
-      val remote = HookupManager.server[TestManager].create()
-
-      Hookup.connect.direct(local, remote)
-
-      local.communication.reverse("Hello, World!").map { result =>
-        result should be("!dlroW ,olleH")
-      }
-    }
+//    "properly create HookupManagers and communicate between them" in {
+//      val local = HookupManager.create[TestManager]
+//      val remote = HookupManager.server[TestManager].create()
+//
+//      Hookup.connect.direct(local, remote)
+//
+//      local.communication.reverse("Hello, World!").map { result =>
+//        result should be("!dlroW ,olleH")
+//      }
+//    }
   }
 
   trait TestInterface1 {
@@ -98,7 +111,7 @@ class HookupSpec extends AsyncWordSpec with Matchers {
 
   trait ClientInterface extends CommunicationInterface
 
-  trait TestManager extends HookupManager {
-    val communication: CommunicationInterface with HookupSupport = auto[CommunicationInterface]
-  }
+//  trait TestManager extends HookupManager {
+//    val communication: CommunicationInterface with HookupSupport = auto[CommunicationInterface]
+//  }
 }

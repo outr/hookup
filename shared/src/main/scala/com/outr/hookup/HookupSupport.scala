@@ -1,6 +1,5 @@
 package com.outr.hookup
 
-import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -16,13 +15,15 @@ trait HookupSupport extends HookupIO {
   protected val methodMap: Map[String, MethodCaller[Any, Any]]
 
   input.attach { reader =>
+    scribe.info(s"Reader: $reader")
     // Determine action
     reader.byte() match {
       case Hookup.Action.MethodRequest => {
+        val id = nextId()
         val requestId = reader.long()
         val methodName = reader.string()
         val methodHandler = methodMap.getOrElse(methodName, throw new RuntimeException(s"No method found by name in method request: $methodName"))
-        methodHandler.execute(this, requestId, reader, DataWriter.empty).map { writer =>
+        methodHandler.execute(this, reader, createResponseWriter(id, requestId)).map { writer =>
           output := writer
         }.failed.foreach { t =>
           // TODO: send back MethodResponseError
@@ -48,25 +49,19 @@ trait HookupSupport extends HookupIO {
 
   def nextId(): Long = idGenerator.getAndIncrement()
 
-  protected def prepareRequestFunction(id: Long, methodName: String): Int => ByteBuffer = messageLength => {
-    val methodNameBytes = methodName.getBytes
-    // Action + ID + Method Name + Message Length
-    val length = 1 + 8 + 4 + methodNameBytes.length + messageLength
-    val bb = ByteBuffer.allocate(length)
-    bb.put(Hookup.Action.MethodRequest)
-    bb.putLong(id)
-    bb.putInt(methodNameBytes.length)
-    bb.put(methodNameBytes)
-    bb
+  protected def createRequestWriter(id: Long, methodName: String): DataWriter = {
+    DataWriter
+      .empty
+      .byte(Hookup.Action.MethodRequest)
+      .long(id)
+      .string(methodName)
   }
 
-  def prepareResponseFunction(id: Long, requestId: Long): Int => ByteBuffer = messageLength => {
-    // Action + ID + Request ID + Message Length
-    val length = 1 + 8 + 8 + messageLength
-    val bb = ByteBuffer.allocate(length)
-    bb.put(Hookup.Action.MethodResponse)
-    bb.putLong(id)
-    bb.putLong(requestId)
-    bb
+  protected def createResponseWriter(id: Long, requestId: Long): DataWriter = {
+    DataWriter
+      .empty
+      .byte(Hookup.Action.MethodResponse)
+      .long(id)
+      .long(requestId)
   }
 }

@@ -32,6 +32,8 @@ object DataReader {
       bb.get(bytes)
       bytes
     }
+
+    override def toString: String = s"DataReader(bytes)"
   }
 
   def apply(blocks: List[DataBlock]): DataReader = new DataReader {
@@ -53,5 +55,7 @@ object DataReader {
     override def double(): Double = get[DoubleData].value
     override def string(): String = get[StringData].value
     override def array(): Array[Byte] = get[ArrayData].array
+
+    override def toString: String = s"DataReader($blocks)"
   }
 }

@@ -11,13 +11,11 @@ trait MethodCaller[Params, Result] {
   def resultEncoder: Encoder[Result]
 
   def execute(support: HookupSupport,
-              requestId: Long,
               reader: DataReader,
               writer: DataWriter): Future[DataWriter] = {
     val params = decode(reader)
     invoke(params).map { result =>
-      val id = support.nextId()
-      encode(result, writer.long(id))
+      encode(result, writer)
     }
   }
 

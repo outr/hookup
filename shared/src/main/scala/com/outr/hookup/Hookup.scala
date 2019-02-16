@@ -23,6 +23,14 @@ object Hookup extends CoreImplicits {
   object connect {
     def direct(first: HookupIO, second: HookupIO): Unit = {
       first.output.attach { writer =>
+        second.input := DataReader(writer.blocks)
+      }
+      second.output.attach { writer =>
+        first.input := DataReader(writer.blocks)
+      }
+    }
+    def bytes(first: HookupIO, second: HookupIO): Unit = {
+      first.output.attach { writer =>
         second.input := DataReader(writer.toByteBuffer)
       }
       second.output.attach { writer =>

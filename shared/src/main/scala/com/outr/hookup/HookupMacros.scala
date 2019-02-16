@@ -34,21 +34,17 @@ object HookupMacros {
     import context.universe._
     context.Expr[Translator[T]](
       q"""
+         import _root_.com.outr.hookup.data._
          import _root_.com.outr.hookup.translate._
          import _root_.profig.JsonUtil
-         import _root_.java.nio.ByteBuffer
 
          new Translator[$t] {
-           override def write(value: $t, bb: ByteBuffer): Unit = {
-             StringTranslator.write(JsonUtil.toJsonString(value), bb)
+           override def write(value: $t, writer: DataWriter): DataWriter = {
+             StringTranslator.write(JsonUtil.toJsonString(value), writer)
            }
 
-           override def length(value: $t): Int = {
-             JsonUtil.toJsonString(value).length
-           }
-
-           override def read(bb: ByteBuffer): $t = {
-             val json = StringTranslator.read(bb)
+           override def read(reader: DataReader): $t = {
+             val json = StringTranslator.read(reader)
              JsonUtil.fromJsonString[$t](json)
            }
          }
@@ -89,39 +85,25 @@ object HookupMacros {
     val resultType = method.typeSignature.resultType.typeArgs.head
     val writeArgs = argTypes.length match {
       case 0 => List(q"()")
-      case 1 => List(q"implicitly[Encoder[${argTypes.head}]].write(value, bb)")
+      case 1 => List(q"implicitly[Encoder[${argTypes.head}]].write(value, writer)")
       case _ => argTypes.zipWithIndex.map {
         case (t, index) => {
           val value = TermName(s"_${index + 1}")
-          q"implicitly[Encoder[$t]].write(value.$value, bb)"
-        }
-      }
-    }
-    val bytesArgs = argTypes.length match {
-      case 0 => List(q"0")
-      case 1 => List(q"implicitly[Encoder[${argTypes.head}]].length(value)")
-      case _ => argTypes.zipWithIndex.map {
-        case (t, index) => {
-          val value = TermName(s"_${index + 1}")
-          q"implicitly[Encoder[$t]].length(value.$value)"
+          q"implicitly[Encoder[$t]].write(value.$value, writer)"
         }
       }
     }
 
     context.Expr[MethodTranslator[Params, Result]](q"""
        import _root_.com.outr.hookup._
+       import _root_.com.outr.hookup.data._
        import _root_.com.outr.hookup.Hookup._
        import _root_.com.outr.hookup.translate._
-       import _root_.java.nio.ByteBuffer
 
        new MethodTranslator[(..$argTypes), $resultType] {
          override val paramsEncoder = new Encoder[(..$argTypes)] {
-           override def write(value: (..$argTypes), bb: ByteBuffer): Unit = {
+           override def write(value: (..$argTypes), writer: DataWriter): DataWriter = {
              ..$writeArgs
-           }
-
-           override def length(value: (..$argTypes)): Int = {
-             List(..$bytesArgs).sum
            }
          }
 
@@ -148,9 +130,9 @@ object HookupMacros {
 
     val readArgs = argTypes.length match {
       case 0 => List(q"")
-      case 1 => List(q"implicitly[Decoder[${argTypes.head}]].read(bb)")
+      case 1 => List(q"implicitly[Decoder[${argTypes.head}]].read(reader)")
       case _ => argTypes.map { t =>
-        q"implicitly[Decoder[$t]].read(bb)"
+        q"implicitly[Decoder[$t]].read(reader)"
       }
     }
 
@@ -174,14 +156,14 @@ object HookupMacros {
     context.Expr[MethodCaller[Params, Result]](
       q"""
          import _root_.com.outr.hookup._
+         import _root_.com.outr.hookup.data._
          import _root_.com.outr.hookup.Hookup._
          import _root_.com.outr.hookup.translate._
-         import _root_.java.nio.ByteBuffer
          import _root_.scala.concurrent.Future
 
          new MethodCaller[(..$argTypes), $resultType] {
            override val paramsDecoder = new Decoder[(..$argTypes)] {
-             override def read(bb: ByteBuffer): (..$argTypes) = {
+             override def read(reader: DataReader): (..$argTypes) = {
                (..$readArgs)
              }
            }
@@ -274,14 +256,13 @@ object HookupMacros {
       q"""
          override def ${m.name.toTermName}(..$params): ${m.typeSignature.resultType} = {
            val id = nextId()
-           val bb = $translatorName.encode((..$params))(prepareRequestFunction(id, ${m.name.toString}))
+           val writer = $translatorName.encode((..$params), createRequestWriter(id, ${m.name.toString}))
            val promise = scala.concurrent.Promise[${m.typeSignature.resultType.typeArgs.head}]
-           methodFutures.put(id, rbb => {
-             val result = $translatorName.decode(rbb)
+           methodFutures.put(id, reader => {
+             val result = $translatorName.decode(reader)
              promise.success(result)
            })
-           bb.flip()
-           output := bb
+           output := writer
 
            promise.future
          }
