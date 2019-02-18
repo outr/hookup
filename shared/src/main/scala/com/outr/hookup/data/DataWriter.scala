@@ -36,6 +36,8 @@ case class DataWriter(blocks: List[DataBlock] = Nil) extends DataBlock {
     bb.flip()
     bb
   }
+
+  override def toString: String = s"DataWriter($blocks)"
 }
 
 object DataWriter {
