@@ -109,12 +109,12 @@ object HookupMacros {
     val argTypes = args.map(_.typeSignature.resultType)
     val resultType = method.typeSignature.resultType.typeArgs.head
     val writeArgs = argTypes.length match {
-      case 0 => List(q"writer")
-      case 1 => List(q"implicitly[Encoder[${argTypes.head}]].write(value, writer)")
+      case 0 => List(q"")
+      case 1 => List(q"w = implicitly[Encoder[${argTypes.head}]].write(value, w)")
       case _ => argTypes.zipWithIndex.map {
         case (t, index) => {
           val value = TermName(s"_${index + 1}")
-          q"implicitly[Encoder[$t]].write(value.$value, writer)"
+          q"w = implicitly[Encoder[$t]].write(value.$value, w)"
         }
       }
     }
@@ -128,7 +128,9 @@ object HookupMacros {
        new MethodTranslator[(..$argTypes), $resultType] {
          override val paramsEncoder = new Encoder[(..$argTypes)] {
            override def write(value: (..$argTypes), writer: DataWriter): DataWriter = {
+             var w = writer
              ..$writeArgs
+             w
            }
          }
 

@@ -81,8 +81,12 @@ class HookupSpec extends AsyncWordSpec with Matchers {
 
       Hookup.connect.direct(local, remote)
 
-      local.communication.reverse("Hello, World!").map { result =>
+      local.communication.reverse("Hello, World!").flatMap { result =>
         result should be("!dlroW ,olleH")
+
+        local.communication.logIn("user", "pass").map { result =>
+          result should be(true)
+        }
       }
     }
     "properly create HookupManagers and communicate between them with secondary communication" in {
@@ -116,10 +120,14 @@ case class User(name: String, age: Int, city: Option[String])
 
 trait CommunicationInterface {
   @server def reverse(value: String): Future[String]
+
+  @server def logIn(username: String, password: String): Future[Boolean]
 }
 
 trait ServerCommunicationInterface extends CommunicationInterface {
   override def reverse(value: String): Future[String] = Future.successful(value.reverse)
+
+  override def logIn(username: String, password: String): Future[Boolean] = Future.successful(true)
 }
 
 trait ClientCommunicationInterface extends CommunicationInterface
