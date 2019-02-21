@@ -84,8 +84,12 @@ class HookupSpec extends AsyncWordSpec with Matchers {
       local.communication.reverse("Hello, World!").flatMap { result =>
         result should be("!dlroW ,olleH")
 
-        local.communication.logIn("user", "pass").map { result =>
+        local.communication.logIn("user", "pass").flatMap { result =>
           result should be(true)
+
+          local.communication.split("This,should,have,five,entries", ',').map { result =>
+            result should be(List("This", "should", "have", "five", "entries"))
+          }
         }
       }
     }
@@ -122,12 +126,16 @@ trait CommunicationInterface {
   @server def reverse(value: String): Future[String]
 
   @server def logIn(username: String, password: String): Future[Boolean]
+
+  @server def split(value: String, char: Char): Future[List[String]]
 }
 
 trait ServerCommunicationInterface extends CommunicationInterface {
   override def reverse(value: String): Future[String] = Future.successful(value.reverse)
 
   override def logIn(username: String, password: String): Future[Boolean] = Future.successful(true)
+
+  override def split(value: String, char: Char): Future[List[String]] = Future.successful(value.split(char).toList)
 }
 
 trait ClientCommunicationInterface extends CommunicationInterface
