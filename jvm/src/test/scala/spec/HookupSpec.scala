@@ -2,18 +2,19 @@ package spec
 
 import java.util.UUID
 
-import com.outr.hookup.data.{DataReader, DataWriter}
-import com.outr.hookup.{Hookup, HookupManager, HookupSupport, server}
-import com.outr.hookup.translate.Translator
+import com.outr.hookup.{Hookup, HookupManager}
 import org.scalatest.{AsyncWordSpec, Matchers}
 
 import scala.concurrent.Future
 
 class HookupSpec extends AsyncWordSpec with Matchers {
-  implicit val userTranslator: Translator[User] = Hookup.translator[User]
-
   "Interface" should {
-    "properly translate using a MethodTranslator" in {
+    "set up a HookupManager" in {
+      val test1 = Hookup[TestInterface1]
+      test1.create() should not be null
+    }
+
+    /*"properly translate using a MethodTranslator" in {
       val method = Hookup.method[TestInterface1, String, String]("reverse")
       val writer = method.encode("Hello, World!", DataWriter.empty)
       val reader = DataReader(writer.blocks)
@@ -102,7 +103,7 @@ class HookupSpec extends AsyncWordSpec with Matchers {
       local.comm2.uuid.map { result =>
         result should have size 36
       }
-    }
+    }*/
   }
 }
 
@@ -122,6 +123,7 @@ object Test1 extends TestInterface1 {
 
 case class User(name: String, age: Int, city: Option[String])
 
+/*
 trait CommunicationInterface {
   @server def reverse(value: String): Future[String]
 
@@ -155,4 +157,4 @@ trait TestManager extends HookupManager {
     register(Hookup.auto[CommunicationInterface])
   }
   val comm2: Comm2 with HookupSupport = register(Hookup.auto[Comm2])
-}
+}*/
