@@ -1,8 +1,6 @@
 package spec
 
-import java.util.UUID
-
-import com.outr.hookup.{Hookup, HookupManager}
+import com.outr.hookup.Hookup
 import org.scalatest.{AsyncWordSpec, Matchers}
 
 import scala.concurrent.Future
@@ -10,8 +8,15 @@ import scala.concurrent.Future
 class HookupSpec extends AsyncWordSpec with Matchers {
   "Interface" should {
     "set up a HookupManager" in {
-      val test1 = Hookup[TestInterface1]
-      test1.create() should not be null
+      val client = Hookup[TestInterface1].create()
+      val server = Hookup[TestInterface1](Test1).create()
+      client should not be null
+      server should not be null
+      Hookup.connect.direct(client, server)
+      server.callables.keySet should be(Set("spec.TestInterface1.createUser", "spec.TestInterface1.reverse"))
+      client.reverse("Hello, World!").map { result =>
+        result should be("!dlroW ,olleH")
+      }
     }
 
     /*"properly translate using a MethodTranslator" in {

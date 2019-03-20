@@ -9,6 +9,17 @@ object Hookup {
   def apply[I, T]: HookupManager[T] = macro oneInterface[I, T]
   def apply[I](implementation: I): HookupManager[I] = macro oneImplementation[I]
 
+  object connect {
+    def direct(first: HookupSupport, second: HookupSupport): Unit = {
+      first.io.output.attach { json =>
+        second.io.input := json
+      }
+      second.io.output.attach { json =>
+        first.io.input := json
+      }
+    }
+  }
+
   def simple[I](context: blackbox.Context)(implicit i: context.WeakTypeTag[I]): context.Expr[HookupManager[I]] = {
     manager[I](context)(i, Nil, Nil)
   }
@@ -37,40 +48,117 @@ object Hookup {
 
     val methods = lookupMethods(context)(i.tpe, unimplemented = None)
     val abstractMethods = methods.filter(_.isAbstract)
-    val concreteMethods = methods.filterNot(_.isAbstract)
     val interfaceMethods = interfaces.flatMap(lookupMethods(context)(_, unimplemented = Some(false)))
     val implementationMethodsMap = implementations.flatMap(s => lookupMethods(context)(s.tpe, unimplemented = Some(false)).map(_ -> s)).toMap
     val implementationMethods = implementationMethodsMap.keys.toList
     val extraMethods = interfaceMethods ::: implementationMethods
+    val concreteMethods = methods.filterNot(_.isAbstract) ::: interfaceMethods ::: implementationMethods
     val unimplementedMethods = abstractMethods.filterNot { s =>
       val methodSignature = sig(s)
       extraMethods.exists(sig(_) == methodSignature)
     }
     val mixIns: List[context.universe.Type] = typeOf[com.outr.hookup.HookupSupport] :: interfaces
 
-    val remoteMethods = unimplementedMethods.map()
-
-    context.Expr[HookupManager[I]](
+    val callables = concreteMethods.map { m =>
+      val args = m.typeSignature.paramLists.headOption.getOrElse(Nil)
+      val argTypes = args.map { arg =>
+        arg.typeSignature.resultType
+      }
+      val params = args.zipWithIndex.map {
+        case (_, index) => q"params.${TermName(s"_${index + 1}")}"
+      }
+      val invoke = if (argTypes.isEmpty) {
+        q"$m()"
+      } else if (argTypes.tail.isEmpty) {
+        q"""
+           val param: ${argTypes.head} = implicitly[Decoder[${argTypes.head}]].decodeJson(json) match {
+             case Left(failure) => throw new RuntimeException("Failed to decode from $$response", failure)
+             case Right(value) => value
+           }
+           $m(param)
+         """
+      } else {
+        q"""
+           val params: (..$argTypes) = implicitly[Decoder[(..$argTypes)]].decodeJson(json) match {
+             case Left(failure) => throw new RuntimeException("Failed to decode from $$response", failure)
+             case Right(value) => value
+           }
+           $m(..$params)
+         """
+      }
       q"""
-         import _root_.com.outr.hookup._
+        new HookupCallable {
+          override val name: String = ${m.name.toString}
+          override def call(json: Json): Future[Json] = {
+            $invoke.map(result => result.asJson)
+          }
+        }
+       """
+    }
 
-         new HookupManager[$i] {
-           override def create(): $i with HookupSupport = new $i with ..$mixIns {
-             override val interfaceName: String = ${i.tpe.typeSymbol.fullName}
-
-             // Register methods implemented locally that can be invoked remotely
-             ..$registerLocalMethods
-
-             // Methods not implemented locally, so they must be invoked remotely
-             ..$remoteMethods
-
-             // Methods not implemented in the interface, but implemented via an implementation
-             ..$implementationMethods
-
-             override def hashCode(): Int = interfaceName.hashCode()
+    val remoteMethods = unimplementedMethods.map { m =>
+      val args = m.typeSignature.paramLists.headOption.getOrElse(Nil)
+      val argNames = args.map(_.name.toTermName)
+      val argTypes = args.map { arg =>
+        arg.typeSignature.resultType
+      }
+      val params = argNames.zip(argTypes).map {
+        case (n, t) => q"$n: $t"
+      }
+      q"""
+         override def ${m.name.toTermName}(..$params): ${m.typeSignature.resultType} = {
+           val params: _root_.io.circe.Json = (..$argNames).asJson
+           remoteInvoke(${m.fullName}, params).map { response =>
+             implicitly[Decoder[${m.typeSignature.resultType.typeArgs.head}]].decodeJson(response) match {
+               case Left(failure) => throw new RuntimeException("Failed to decode from $$response", failure)
+               case Right(value) => value
+             }
            }
          }
-       """)
+       """
+    }
+
+    val implementedMethods = implementationMethods.map { m =>
+      val args = m.typeSignature.paramLists.headOption.getOrElse(Nil)
+      val argNames = args.map(_.name.toTermName)
+      val argTypes = args.map { arg =>
+        arg.typeSignature.resultType
+      }
+      val params = argNames.zip(argTypes).map {
+        case (n, t) => q"$n: $t"
+      }
+      val implementation = implementationMethodsMap(m)
+      q"""
+         override def ${m.name.toTermName}(..$params): ${m.typeSignature.resultType} = {
+           $implementation.${m.name.toTermName}(..$argNames)
+         }
+       """
+    }
+
+    val manager = q"""
+       import _root_.com.outr.hookup._
+       import _root_.io.circe._
+       import _root_.io.circe.generic.auto._
+       import _root_.io.circe.syntax._
+
+       new HookupManager[$i] {
+         override def create(): $i with HookupSupport = new $i with ..$mixIns {
+           override val interfaceName: String = ${i.tpe.typeSymbol.fullName}
+
+           // Callables
+           override val callables: Map[String, HookupCallable] = List[HookupCallable](..$callables).map(c => s"$$interfaceName.$${c.name}" -> c).toMap
+
+           // Methods not implemented locally, so they must be invoked remotely
+           ..$remoteMethods
+
+           // Methods not implemented in the interface, but implemented via an implementation
+           ..$implementedMethods
+
+           override def hashCode(): Int = interfaceName.hashCode()
+         }
+       }
+     """
+    context.Expr[HookupManager[I]](manager)
   }
 
   private def lookupMethods(context: blackbox.Context)
