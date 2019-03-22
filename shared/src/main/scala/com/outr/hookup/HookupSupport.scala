@@ -10,6 +10,12 @@ import scribe.Execution.global
 import scala.util.{Failure, Success}
 
 trait HookupSupport extends HookupIO {
+  def interfaceName: String
+
+  /**
+    * Locally defined methods that can be invoked remotely
+    */
+  def callables: Map[String, HookupCallable]
   private val idGenerator = new AtomicLong(0L)
   private var callbacks = Map.empty[Long, Promise[Json]]
 
@@ -24,6 +30,7 @@ trait HookupSupport extends HookupIO {
             callable.call(params).onComplete {
               case Success(value) => io.output := Json.obj(
                 "id" -> Json.fromLong(id),
+                "name" -> Json.fromString(name),
                 "type" -> Json.fromString(HookupSupport.`type`.Response),
                 "response" -> value
               )
@@ -31,6 +38,7 @@ trait HookupSupport extends HookupIO {
                 scribe.error(s"Error while invoking $interfaceName.$name", throwable)
                 io.output := Json.obj(
                   "id" -> Json.fromLong(id),
+                  "name" -> Json.fromString(name),
                   "type" -> Json.fromString(HookupSupport.`type`.Error),
                   "message" -> Json.fromString(Option(throwable.getMessage).getOrElse("Error")),
                   "class" -> Json.fromString(throwable.getClass.getName)
@@ -70,10 +78,6 @@ trait HookupSupport extends HookupIO {
       }
     }
   }
-
-  def interfaceName: String
-
-  def callables: Map[String, HookupCallable]
 
   protected def remoteInvoke(name: String, params: Json): Future[Json] = synchronized {
     val id = idGenerator.incrementAndGet()

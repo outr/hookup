@@ -1,6 +1,6 @@
 package spec
 
-import com.outr.hookup.Hookup
+import com.outr.hookup.{Hookup, HookupManager, HookupSupport}
 import org.scalatest.{AsyncWordSpec, Matchers}
 
 import scala.concurrent.Future
@@ -18,59 +18,24 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         result should be("!dlroW ,olleH")
       }
     }
+    "set up a Hookup instance" in {
+      trait ClientInterface1 extends Hookup {
+        val interface1: TestInterface1 with HookupSupport = create[TestInterface1]
+      }
+      trait ServerInterface1 extends Hookup {
+        val interface1: TestInterface1 = create[TestInterface1](Test1)
+      }
+      val client = Hookup.client[ClientInterface1]
+      val server = Hookup.server[ServerInterface1, String]
+      val serverInstance = server("test1")
 
-    /*"properly translate using a MethodTranslator" in {
-      val method = Hookup.method[TestInterface1, String, String]("reverse")
-      val writer = method.encode("Hello, World!", DataWriter.empty)
-      val reader = DataReader(writer.blocks)
-      method.decode(reader) should be("Hello, World!")
-    }
-    "properly call user a MethodCaller" in {
-      val method = Hookup.method[TestInterface1, String, String]("reverse", Test1)
-      method.invoke("Hello, World!").map { result =>
-        result should be("!dlroW ,olleH")
+      Hookup.connect.direct(client, serverInstance)
+      client.interface1.reverse("This is a test!").map { result =>
+        result should be("!tset a si sihT")
       }
     }
-    "properly follow the entire cycle" in {
-      val remote = Hookup.method[TestInterface1, String, String]("reverse")
-      val writer = remote.encode("Hello, World!", DataWriter.empty)
 
-      val local = Hookup.method[TestInterface1, String, String]("reverse", Test1)
-      val params = local.decode(DataReader(writer.blocks))
-      local.invoke(params).map { result =>
-        val writer2 = local.encode(result, DataWriter.empty)
-        val finalResult = remote.decode(DataReader(writer2.blocks))
-        finalResult should be("!dlroW ,olleH")
-      }
-    }
-    "properly test a custom implementation" in {
-      val local = Hookup.create[TestInterface1]
-      val remote = Hookup.create[TestInterface1](Test1)
-
-      local.interfaceName should be("spec.TestInterface1")
-      remote.interfaceName should be("spec.TestInterface1")
-      local.hashCode() should be(remote.hashCode())
-
-      Hookup.connect.direct(local, remote)
-
-      local.reverse("Hello, World!").map { result =>
-        result should be("!dlroW ,olleH")
-      }
-    }
-    "properly test a custom implementation using ByteBuffer encoding/decoding" in {
-      val local = Hookup.create[TestInterface1]
-      val remote = Hookup.create[TestInterface1](Test1)
-
-      local.interfaceName should be("spec.TestInterface1")
-      remote.interfaceName should be("spec.TestInterface1")
-      local.hashCode() should be(remote.hashCode())
-
-      Hookup.connect.bytes(local, remote)
-
-      local.reverse("Hello, World!").map { result =>
-        result should be("!dlroW ,olleH")
-      }
-    }
+    /*
     "properly text a client / server implementation" in {
       val client = Hookup.client[CommunicationInterface, ClientCommunicationInterface]
       val server = Hookup.server[CommunicationInterface, ServerCommunicationInterface]

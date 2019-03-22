@@ -4,13 +4,39 @@ import scala.concurrent.Future
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox
 
+trait Hookup extends HookupIO {
+  private var _callables = Map.empty[String, HookupIO]
+  def callables: Map[String, HookupIO] = _callables
+
+  io.input.attach { json =>
+    val method = (json \\ "name").head.asString.get
+    val interfaceName = method.substring(0, method.lastIndexOf('.'))
+    callables.get(interfaceName) match {
+      case Some(hookupIO) => hookupIO.io.input := json
+      case None => throw new RuntimeException(s"No interface mapping found for: $interfaceName ($json) (keys: ${callables.keySet})")
+    }
+  }
+
+  protected def register[I](i: I with HookupSupport): I with HookupSupport = synchronized {
+    i.io.output.attach(json => io.output := json)
+    _callables += i.interfaceName -> i
+    i
+  }
+
+  protected def create[I]: I with HookupSupport = macro Hookup.instanceSimple[I]
+  protected def create[I](implementation: I): I with HookupSupport = macro Hookup.instanceOneImplementation[I]
+}
+
 object Hookup {
+  def client[H <: Hookup]: H = macro createClient[H]
+  def server[H <: Hookup, Key]: HookupServer[H, Key] = macro createServer[H, Key]
+
   def apply[I]: HookupManager[I] = macro simple[I]
   def apply[I, T]: HookupManager[T] = macro oneInterface[I, T]
   def apply[I](implementation: I): HookupManager[I] = macro oneImplementation[I]
 
   object connect {
-    def direct(first: HookupSupport, second: HookupSupport): Unit = {
+    def direct(first: HookupIO, second: HookupIO): Unit = {
       first.io.output.attach { json =>
         second.io.input := json
       }
@@ -18,6 +44,42 @@ object Hookup {
         first.io.input := json
       }
     }
+  }
+
+  def createClient[H <: Hookup](context: blackbox.Context)(implicit h: context.WeakTypeTag[H]): context.Expr[H] = {
+    import context.universe._
+
+    context.Expr[H](q"new $h {}")
+  }
+
+  def createServer[H <: Hookup, Key](context: blackbox.Context)
+                              (implicit h: context.WeakTypeTag[H], key: context.WeakTypeTag[Key]): context.Expr[HookupServer[H, Key]] = {
+    import context.universe._
+
+    context.Expr[HookupServer[H, Key]](
+      q"""
+         import _root_.com.outr.hookup._
+
+         new HookupServer[$h, $key] {
+           override def create(): $h = new $h {}
+         }
+       """)
+  }
+
+  def instanceSimple[I](context: blackbox.Context)(implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
+    import context.universe._
+    val instance = context.prefix.tree
+    val expr = simple[I](context)(i)
+    context.Expr[I with HookupSupport](q"$instance.register($expr.create())")
+  }
+
+  def instanceOneImplementation[I](context: blackbox.Context)
+                                  (implementation: context.Expr[I])
+                                  (implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
+    import context.universe._
+    val instance = context.prefix.tree
+    val expr = oneImplementation[I](context)(implementation)(i)
+    context.Expr[I with HookupSupport](q"$instance.register($expr.create())")
   }
 
   def simple[I](context: blackbox.Context)(implicit i: context.WeakTypeTag[I]): context.Expr[HookupManager[I]] = {
@@ -142,6 +204,8 @@ object Hookup {
        import _root_.io.circe.syntax._
 
        new HookupManager[$i] {
+         override val interfaceName: String = ${i.tpe.typeSymbol.fullName}
+
          override def create(): $i with HookupSupport = new $i with ..$mixIns {
            override val interfaceName: String = ${i.tpe.typeSymbol.fullName}
 
