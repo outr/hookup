@@ -7,7 +7,4 @@ import scala.concurrent.Future
 /**
   * HookupCallable is a mapping to a locally implemented method that can be invoked remotely
   */
-trait HookupCallable {
-  def name: String
-  def call(json: Json): Future[Json]
-}
+case class HookupCallable(name: String, call: Json => Future[Json])

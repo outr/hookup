@@ -1,6 +1,8 @@
 package spec
 
-import com.outr.hookup.{Hookup, HookupManager, HookupSupport}
+import java.util.UUID
+
+import com.outr.hookup.{Hookup, HookupManager, HookupSupport, server}
 import org.scalatest.{AsyncWordSpec, Matchers}
 
 import scala.concurrent.Future
@@ -34,19 +36,40 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         result should be("!tset a si sihT")
       }
     }
+    /*"properly test a client / server implementation manually" in {
+//      trait Client extends Hookup {
+//        val interface: CommunicationInterface with HookupSupport = create[CommunicationInterface, ClientCommunicationInterface]
+//      }
+      trait Server extends Hookup {
+        val interface: CommunicationInterface with HookupSupport = create[CommunicationInterface, ServerCommunicationInterface]
+      }
+//      val client = Hookup.client[Client]
+//      val server = Hookup.server[Server, String]
+//      val serverInstance = server("instance1")
 
-    /*
-    "properly text a client / server implementation" in {
-      val client = Hookup.client[CommunicationInterface, ClientCommunicationInterface]
-      val server = Hookup.server[CommunicationInterface, ServerCommunicationInterface]
+//      Hookup.connect.direct(client, serverInstance)
 
-      Hookup.connect.direct(client, server)
+//      client.interface.reverse("Hello, World!").map { result =>
+//        result should be("!dlroW ,olleH")
+//      }
+//      server should not be null
+      succeed
+    }*/
+    /*"properly test a client / server implementation using auto" in {
+      trait Communication extends Hookup {
+        val interface: CommunicationInterface with HookupSupport = auto[CommunicationInterface]
+      }
+      val client = Hookup.client[Communication]
+      val server = Hookup.server[Communication, String]
+      val serverInstance = server("instance1")
 
-      client.reverse("Hello, World!").map { result =>
+      Hookup.connect.direct(client, serverInstance)
+
+      client.interface.reverse("Hello, World!").map { result =>
         result should be("!dlroW ,olleH")
       }
-    }
-    "properly create HookupManagers and communicate between them" in {
+    }*/
+    /*"properly create HookupManagers and communicate between them" in {
       val local = HookupManager.client[TestManager]
       val remote = HookupManager.server[TestManager].create()
 
@@ -93,21 +116,21 @@ object Test1 extends TestInterface1 {
 
 case class User(name: String, age: Int, city: Option[String])
 
-/*
+
 trait CommunicationInterface {
   @server def reverse(value: String): Future[String]
 
-  @server def logIn(username: String, password: String): Future[Boolean]
+//  @server def logIn(username: String, password: String): Future[Boolean]
 
-  @server def split(value: String, char: Char): Future[List[String]]
+//  @server def split(value: String, char: Char): Future[List[String]]
 }
 
 trait ServerCommunicationInterface extends CommunicationInterface {
   override def reverse(value: String): Future[String] = Future.successful(value.reverse)
 
-  override def logIn(username: String, password: String): Future[Boolean] = Future.successful(true)
+//  override def logIn(username: String, password: String): Future[Boolean] = Future.successful(true)
 
-  override def split(value: String, char: Char): Future[List[String]] = Future.successful(value.split(char).toList)
+//  override def split(value: String, char: Char): Future[List[String]] = Future.successful(value.split(char).toList)
 }
 
 trait ClientCommunicationInterface extends CommunicationInterface
@@ -121,10 +144,3 @@ trait ServerComm2 extends Comm2 {
 }
 
 trait ClientComm2 extends Comm2
-
-trait TestManager extends HookupManager {
-  val communication: CommunicationInterface with HookupSupport = {
-    register(Hookup.auto[CommunicationInterface])
-  }
-  val comm2: Comm2 with HookupSupport = register(Hookup.auto[Comm2])
-}*/

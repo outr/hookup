@@ -9,7 +9,12 @@ object HookupMacros {
   def createClient[H <: Hookup](context: blackbox.Context)(implicit h: context.WeakTypeTag[H]): context.Expr[H] = {
     import context.universe._
 
-    context.Expr[H](q"new $h {}")
+    context.Expr[H](
+      q"""
+         new $h {
+           override def isClient: Boolean = true
+         }
+       """)
   }
 
   def createServer[H <: Hookup, Key](context: blackbox.Context)
@@ -21,15 +26,61 @@ object HookupMacros {
          import _root_.com.outr.hookup._
 
          new HookupServer[$h, $key] {
-           override def create(): $h = new $h {}
+           override def create(): $h = new $h {
+             override def isClient: Boolean = false
+           }
          }
        """)
+  }
+
+  def instanceAuto[I](context: blackbox.Context)(implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
+    import context.universe._
+
+    val instance = context.prefix.tree
+    val packageName = findPackage(context)(i.tpe.typeSymbol)
+    val classes = context
+      .mirror
+      .staticPackage(packageName)
+      .typeSignature
+      .decls
+      .filter(_.isClass)
+      .filter(_.typeSignature.baseClasses.contains(i.tpe.typeSymbol))
+    val clientInterface = classes.find(_.fullName.toLowerCase.contains("client"))
+    val serverInterface = classes.find(_.fullName.toLowerCase.contains("server"))
+    def notImplemented = context.Expr[HookupManager[I]](q"""throw new RuntimeException("No implementation found!")""")
+    val clientImplementation = clientInterface.map(t => manager[I](context)(i, List(t.typeSignature), Nil)).getOrElse(notImplemented)
+    val serverImplementation = serverInterface.map(t => manager[I](context)(i, List(t.typeSignature), Nil)).getOrElse(notImplemented)
+    val t = context.Expr[I with HookupSupport](
+      q"""
+         val expr = if ($instance.isClient) {
+           $clientImplementation
+         } else {
+           $serverImplementation
+         }
+         $instance.register(expr.create())
+       """)
+    println(t)
+    t
+  }
+
+  private def findPackage(context: blackbox.Context)(s: context.Symbol): String = if (s.isPackage) {
+    s.fullName
+  } else {
+    findPackage(context)(s.owner)
   }
 
   def instanceSimple[I](context: blackbox.Context)(implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
     import context.universe._
     val instance = context.prefix.tree
     val expr = simple[I](context)(i)
+    context.Expr[I with HookupSupport](q"$instance.register($expr.create())")
+  }
+
+  def instanceOneInterface[I, T](context: blackbox.Context)
+                                (implicit i: context.WeakTypeTag[I], t: context.WeakTypeTag[T]): context.Expr[I with HookupSupport] = {
+    import context.universe._
+    val instance = context.prefix.tree
+    val expr = oneInterface[I, T](context)(i, t)
     context.Expr[I with HookupSupport](q"$instance.register($expr.create())")
   }
 
@@ -81,6 +132,7 @@ object HookupMacros {
     }
     val mixIns: List[context.universe.Type] = typeOf[com.outr.hookup.HookupSupport] :: interfaces
 
+    val interfaceName: String = i.tpe.typeSymbol.fullName
     val callables = concreteMethods.map { m =>
       val args = m.typeSignature.paramLists.headOption.getOrElse(Nil)
       val argTypes = args.map { arg =>
@@ -108,13 +160,11 @@ object HookupMacros {
            $m(..$params)
          """
       }
+      val name = s"$interfaceName.${m.name}"
       q"""
-        new HookupCallable {
-          override val name: String = ${m.name.toString}
-          override def call(json: Json): Future[Json] = {
-            $invoke.map(result => result.asJson)
-          }
-        }
+        ($name, HookupCallable(${m.name.toString}, json => {
+          $invoke.map(result => result.asJson)
+        }))
        """
     }
 
@@ -163,25 +213,23 @@ object HookupMacros {
        import _root_.io.circe.generic.auto._
        import _root_.io.circe.syntax._
 
-       new HookupManager[$i] {
-         override val interfaceName: String = ${i.tpe.typeSymbol.fullName}
+       HookupManager($interfaceName, () => new $i with ..$mixIns {
+         override val interfaceName: String = $interfaceName
 
-         override def create(): $i with HookupSupport = new $i with ..$mixIns {
-           override val interfaceName: String = ${i.tpe.typeSymbol.fullName}
+         // Callables
+         override val callables: Map[String, HookupCallable] = Map(..$callables)
 
-           // Callables
-           override val callables: Map[String, HookupCallable] = List[HookupCallable](..$callables).map(c => s"$$interfaceName.$${c.name}" -> c).toMap
+         // Methods not implemented locally, so they must be invoked remotely
+         ..$remoteMethods
 
-           // Methods not implemented locally, so they must be invoked remotely
-           ..$remoteMethods
+         // Methods not implemented in the interface, but implemented via an implementation
+         ..$implementedMethods
 
-           // Methods not implemented in the interface, but implemented via an implementation
-           ..$implementedMethods
-
-           override def hashCode(): Int = interfaceName.hashCode()
-         }
-       }
+         override def hashCode(): Int = interfaceName.hashCode()
+       })
      """
+    println(manager)
+//    context.abort(context.enclosingPosition, "fail")
     context.Expr[HookupManager[I]](manager)
   }
 

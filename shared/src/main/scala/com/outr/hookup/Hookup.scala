@@ -6,6 +6,9 @@ trait Hookup extends HookupIO {
   private var _callables = Map.empty[String, HookupIO]
   def callables: Map[String, HookupIO] = _callables
 
+  def isClient: Boolean
+  def isServer: Boolean = !isClient
+
   io.input.attach { json =>
     val method = (json \\ "name").head.asString.get
     val interfaceName = method.substring(0, method.lastIndexOf('.'))
@@ -22,7 +25,9 @@ trait Hookup extends HookupIO {
   }
 
   protected def create[I]: I with HookupSupport = macro HookupMacros.instanceSimple[I]
+  protected def create[I, T]: I with HookupSupport = macro HookupMacros.instanceOneInterface[I, T]
   protected def create[I](implementation: I): I with HookupSupport = macro HookupMacros.instanceOneImplementation[I]
+  protected def auto[I]: I with HookupSupport = macro HookupMacros.instanceAuto[I]
 }
 
 object Hookup {

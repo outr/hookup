@@ -1,6 +1,3 @@
 package com.outr.hookup
 
-trait HookupManager[I] {
-  def interfaceName: String
-  def create(): I with HookupSupport
-}
+case class HookupManager[I](interfaceName: String, create: () => I with HookupSupport)
