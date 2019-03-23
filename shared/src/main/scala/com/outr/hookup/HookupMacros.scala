@@ -50,7 +50,7 @@ object HookupMacros {
     def notImplemented = context.Expr[I with HookupSupport](q"""throw new RuntimeException("No implementation found!")""")
     val clientImplementation = clientInterface.map(t => create[I](context)(i, List(t.typeSignature), Nil)).getOrElse(notImplemented)
     val serverImplementation = serverInterface.map(t => create[I](context)(i, List(t.typeSignature), Nil)).getOrElse(notImplemented)
-    val t = context.Expr[I with HookupSupport](
+    context.Expr[I with HookupSupport](
       q"""
          val expr = if ($instance.isClient) {
            $clientImplementation
@@ -59,8 +59,6 @@ object HookupMacros {
          }
          $instance.register(expr)
        """)
-    println(t)
-    t
   }
 
   private def findPackage(context: blackbox.Context)(s: context.Symbol): String = if (s.isPackage) {
@@ -109,7 +107,7 @@ object HookupMacros {
     val implementationMethodsMap = implementations.flatMap(s => lookupMethods(context)(s.tpe, unimplemented = Some(false)).map(_ -> s)).toMap
     val implementationMethods = implementationMethodsMap.keys.toList
     val extraMethods = interfaceMethods ::: implementationMethods
-    val concreteMethods = methods.filterNot(_.isAbstract) ::: interfaceMethods ::: implementationMethods
+    val concreteMethods = methods.filterNot(_.isAbstract) ::: interfaceMethods
     val unimplementedMethods = abstractMethods.filterNot { s =>
       val methodSignature = sig(s)
       extraMethods.exists(sig(_) == methodSignature)
@@ -117,7 +115,8 @@ object HookupMacros {
     val mixIns: List[context.universe.Type] = typeOf[com.outr.hookup.HookupSupport] :: interfaces
 
     val interfaceName: String = i.tpe.typeSymbol.fullName
-    val callables = concreteMethods.map { m =>
+
+    def createCallable(m: context.Symbol, useThis: Boolean): context.Tree = {
       val args = m.typeSignature.paramLists.headOption.getOrElse(Nil)
       val argTypes = args.map { arg =>
         arg.typeSignature.resultType
@@ -125,15 +124,16 @@ object HookupMacros {
       val params = args.zipWithIndex.map {
         case (_, index) => q"params.${TermName(s"_${index + 1}")}"
       }
+      val prefix = if (useThis) q"this.$m" else q"$m"
       val invoke = if (argTypes.isEmpty) {
-        q"$m()"
+        q"$prefix()"
       } else if (argTypes.tail.isEmpty) {
         q"""
            val param: ${argTypes.head} = implicitly[Decoder[${argTypes.head}]].decodeJson(json) match {
              case Left(failure) => throw new RuntimeException("Failed to decode from $$response", failure)
              case Right(value) => value
            }
-           $m(param)
+           $prefix(param)
          """
       } else {
         q"""
@@ -141,7 +141,7 @@ object HookupMacros {
              case Left(failure) => throw new RuntimeException("Failed to decode from $$response", failure)
              case Right(value) => value
            }
-           $m(..$params)
+           $prefix(..$params)
          """
       }
       val name = s"$interfaceName.${m.name}"
@@ -151,6 +151,9 @@ object HookupMacros {
         }))
        """
     }
+
+    val callables = concreteMethods.map(m => createCallable(m, useThis = true)) :::
+      implementationMethods.map(m => createCallable(m, useThis = false))
 
     val remoteMethods = unimplementedMethods.map { m =>
       val args = m.typeSignature.paramLists.headOption.getOrElse(Nil)
@@ -212,8 +215,6 @@ object HookupMacros {
          override def hashCode(): Int = interfaceName.hashCode()
        }
      """
-    println(hookup)
-//    context.abort(context.enclosingPosition, "fail")
     context.Expr[I with HookupSupport](hookup)
   }
 

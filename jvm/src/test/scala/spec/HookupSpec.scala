@@ -9,7 +9,7 @@ import scala.concurrent.Future
 
 class HookupSpec extends AsyncWordSpec with Matchers {
   "Interface" should {
-    "set up a Hookup instance" in {
+    "set up a Hookup instance with interface and implementation" in {
       trait ClientInterface1 extends Hookup {
         val interface1: TestInterface1 with HookupSupport = create[TestInterface1]
       }
@@ -25,26 +25,24 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         result should be("!tset a si sihT")
       }
     }
-    /*"properly test a client / server implementation manually" in {
-//      trait Client extends Hookup {
-//        val interface: CommunicationInterface with HookupSupport = create[CommunicationInterface, ClientCommunicationInterface]
-//      }
+    "properly test a client / server implementation manually" in {
+      trait Client extends Hookup {
+        val interface: CommunicationInterface with HookupSupport = create[CommunicationInterface, ClientCommunicationInterface]
+      }
       trait Server extends Hookup {
         val interface: CommunicationInterface with HookupSupport = create[CommunicationInterface, ServerCommunicationInterface]
       }
-//      val client = Hookup.client[Client]
-//      val server = Hookup.server[Server, String]
-//      val serverInstance = server("instance1")
+      val client = Hookup.client[Client]
+      val server = Hookup.server[Server, String]
+      val serverInstance = server("instance1")
 
-//      Hookup.connect.direct(client, serverInstance)
+      Hookup.connect.direct(client, serverInstance)
 
-//      client.interface.reverse("Hello, World!").map { result =>
-//        result should be("!dlroW ,olleH")
-//      }
-//      server should not be null
-      succeed
-    }*/
-    /*"properly test a client / server implementation using auto" in {
+      client.interface.reverse("Hello, World!").map { result =>
+        result should be("!dlroW ,olleH")
+      }
+    }
+    "properly test a client / server implementation using auto" in {
       trait Communication extends Hookup {
         val interface: CommunicationInterface with HookupSupport = auto[CommunicationInterface]
       }
@@ -57,7 +55,7 @@ class HookupSpec extends AsyncWordSpec with Matchers {
       client.interface.reverse("Hello, World!").map { result =>
         result should be("!dlroW ,olleH")
       }
-    }*/
+    }
     /*"properly create HookupManagers and communicate between them" in {
       val local = HookupManager.client[TestManager]
       val remote = HookupManager.server[TestManager].create()
