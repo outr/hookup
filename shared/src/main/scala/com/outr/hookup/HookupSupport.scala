@@ -108,13 +108,3 @@ object HookupSupport {
     "errorType" -> Json.fromString(errorType)
   )
 }
-
-/**
-  * HookupCallable is a mapping to a locally implemented method that can be invoked remotely
-  */
-trait HookupCallable {
-  def name: String
-  def call(json: Json): Future[Json]
-}
-
-case class HookupException(message: String, errorType: String) extends RuntimeException(message)
