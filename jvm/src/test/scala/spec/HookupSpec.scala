@@ -52,38 +52,18 @@ class HookupSpec extends AsyncWordSpec with Matchers {
 
       Hookup.connect.direct(client, serverInstance)
 
-      client.interface.reverse("Hello, World!").map { result =>
-        result should be("!dlroW ,olleH")
-      }
-    }
-    /*"properly create HookupManagers and communicate between them" in {
-      val local = HookupManager.client[TestManager]
-      val remote = HookupManager.server[TestManager].create()
-
-      Hookup.connect.direct(local, remote)
-
-      local.communication.reverse("Hello, World!").flatMap { result =>
+      client.interface.reverse("Hello, World!").flatMap { result =>
         result should be("!dlroW ,olleH")
 
-        local.communication.logIn("user", "pass").flatMap { result =>
+        client.interface.logIn("user", "pass").flatMap { result =>
           result should be(true)
 
-          local.communication.split("This,should,have,five,entries", ',').map { result =>
+          client.interface.split("This,should,have,five,entries", ',').map { result =>
             result should be(List("This", "should", "have", "five", "entries"))
           }
         }
       }
     }
-    "properly create HookupManagers and communicate between them with secondary communication" in {
-      val local = HookupManager.client[TestManager]
-      val remote = HookupManager.server[TestManager].create()
-
-      Hookup.connect.direct(local, remote)
-
-      local.comm2.uuid.map { result =>
-        result should have size 36
-      }
-    }*/
   }
 }
 
@@ -103,31 +83,20 @@ object Test1 extends TestInterface1 {
 
 case class User(name: String, age: Int, city: Option[String])
 
-
 trait CommunicationInterface {
   @server def reverse(value: String): Future[String]
 
-//  @server def logIn(username: String, password: String): Future[Boolean]
+  @server def logIn(username: String, password: String): Future[Boolean]
 
-//  @server def split(value: String, char: Char): Future[List[String]]
+  @server def split(value: String, char: Char): Future[List[String]]
 }
 
 trait ServerCommunicationInterface extends CommunicationInterface {
   override def reverse(value: String): Future[String] = Future.successful(value.reverse)
 
-//  override def logIn(username: String, password: String): Future[Boolean] = Future.successful(true)
+  override def logIn(username: String, password: String): Future[Boolean] = Future.successful(true)
 
-//  override def split(value: String, char: Char): Future[List[String]] = Future.successful(value.split(char).toList)
+  override def split(value: String, char: Char): Future[List[String]] = Future.successful(value.split(char).toList)
 }
 
 trait ClientCommunicationInterface extends CommunicationInterface
-
-trait Comm2 {
-  @server def uuid: Future[String]
-}
-
-trait ServerComm2 extends Comm2 {
-  override def uuid: Future[String] = Future.successful(UUID.randomUUID().toString)
-}
-
-trait ClientComm2 extends Comm2

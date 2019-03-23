@@ -45,19 +45,24 @@ object HookupMacros {
       .decls
       .filter(_.isClass)
       .filter(_.typeSignature.baseClasses.contains(i.tpe.typeSymbol))
+      .toList
+      .flatMap { s =>
+        s.typeSignature.baseClasses.collect {
+          case c if c.typeSignature.baseClasses.contains(i.tpe.typeSymbol) && c != i.tpe.typeSymbol => c
+        }
+      }
     val clientInterface = classes.find(_.fullName.toLowerCase.contains("client"))
     val serverInterface = classes.find(_.fullName.toLowerCase.contains("server"))
     def notImplemented = context.Expr[I with HookupSupport](q"""throw new RuntimeException("No implementation found!")""")
-    val clientImplementation = clientInterface.map(t => create[I](context)(i, List(t.typeSignature), Nil)).getOrElse(notImplemented)
-    val serverImplementation = serverInterface.map(t => create[I](context)(i, List(t.typeSignature), Nil)).getOrElse(notImplemented)
+    val clientImplementation = clientInterface.map(t => create[I](context)(i, List(t.asClass.selfType), Nil)).getOrElse(notImplemented)
+    val serverImplementation = serverInterface.map(t => create[I](context)(i, List(t.asClass.selfType), Nil)).getOrElse(notImplemented)
     context.Expr[I with HookupSupport](
       q"""
-         val expr = if ($instance.isClient) {
+         $instance.register(if ($instance.isClient) {
            $clientImplementation
          } else {
            $serverImplementation
-         }
-         $instance.register(expr)
+         })
        """)
   }
 
