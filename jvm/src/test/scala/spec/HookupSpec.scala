@@ -2,24 +2,13 @@ package spec
 
 import java.util.UUID
 
-import com.outr.hookup.{Hookup, HookupManager, HookupSupport, server}
+import com.outr.hookup.{Hookup, HookupSupport, server}
 import org.scalatest.{AsyncWordSpec, Matchers}
 
 import scala.concurrent.Future
 
 class HookupSpec extends AsyncWordSpec with Matchers {
   "Interface" should {
-    "set up a HookupManager" in {
-      val client = Hookup[TestInterface1].create()
-      val server = Hookup[TestInterface1](Test1).create()
-      client should not be null
-      server should not be null
-      Hookup.connect.direct(client, server)
-      server.callables.keySet should be(Set("spec.TestInterface1.createUser", "spec.TestInterface1.reverse"))
-      client.reverse("Hello, World!").map { result =>
-        result should be("!dlroW ,olleH")
-      }
-    }
     "set up a Hookup instance" in {
       trait ClientInterface1 extends Hookup {
         val interface1: TestInterface1 with HookupSupport = create[TestInterface1]

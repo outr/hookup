@@ -24,19 +24,15 @@ trait Hookup extends HookupIO {
     i
   }
 
-  protected def create[I]: I with HookupSupport = macro HookupMacros.instanceSimple[I]
-  protected def create[I, T]: I with HookupSupport = macro HookupMacros.instanceOneInterface[I, T]
-  protected def create[I](implementation: I): I with HookupSupport = macro HookupMacros.instanceOneImplementation[I]
+  protected def create[I]: I with HookupSupport = macro HookupMacros.simple[I]
+  protected def create[I, T]: I with HookupSupport = macro HookupMacros.oneInterface[I, T]
+  protected def create[I](implementation: I): I with HookupSupport = macro HookupMacros.oneImplementation[I]
   protected def auto[I]: I with HookupSupport = macro HookupMacros.instanceAuto[I]
 }
 
 object Hookup {
   def client[H <: Hookup]: H = macro HookupMacros.createClient[H]
   def server[H <: Hookup, Key]: HookupServer[H, Key] = macro HookupMacros.createServer[H, Key]
-
-  def apply[I]: HookupManager[I] = macro HookupMacros.simple[I]
-  def apply[I, T]: HookupManager[T] = macro HookupMacros.oneInterface[I, T]
-  def apply[I](implementation: I): HookupManager[I] = macro HookupMacros.oneImplementation[I]
 
   object connect {
     def direct(first: HookupIO, second: HookupIO): Unit = {
