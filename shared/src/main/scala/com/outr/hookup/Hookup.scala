@@ -27,7 +27,7 @@ trait Hookup extends HookupIO {
   protected def create[I]: I with HookupSupport = macro HookupMacros.simple[I]
   protected def create[I, T]: I with HookupSupport = macro HookupMacros.oneInterface[I, T]
   protected def create[I](implementation: I): I with HookupSupport = macro HookupMacros.oneImplementation[I]
-  protected def auto[I]: I with HookupSupport = macro HookupMacros.instanceAuto[I]
+  protected def auto[I]: I with HookupSupport = macro HookupMacros.auto[I]
 }
 
 object Hookup {

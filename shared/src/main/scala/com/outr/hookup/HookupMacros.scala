@@ -33,7 +33,7 @@ object HookupMacros {
        """)
   }
 
-  def instanceAuto[I](context: blackbox.Context)(implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
+  def auto[I](context: blackbox.Context)(implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
     import context.universe._
 
     val instance = context.prefix.tree
@@ -53,6 +53,25 @@ object HookupMacros {
       }
     val clientInterface = classes.find(_.fullName.toLowerCase.contains("client"))
     val serverInterface = classes.find(_.fullName.toLowerCase.contains("server"))
+
+    def verifyAnnotation(interface: Option[context.Symbol], annotationName: String): Unit = {
+      interface.foreach { c =>
+        c.typeSignature.members.toList.foreach {
+          case symbol if symbol.isMethod && symbol.asMethod.isPublic && symbol.typeSignature.resultType <:< typeOf[Future[Any]] => {
+            val annotations = symbol.annotations ::: symbol.overrides.flatMap(_.annotations)
+            val isAnnotated = annotations.exists(_.toString == annotationName)
+            if (isAnnotated && symbol.isAbstract) {
+              context.abort(context.enclosingPosition, s"${symbol.fullName} is not implemented in ${c.fullName}")
+            }
+          }
+          case _ =>
+        }
+      }
+    }
+
+    verifyAnnotation(clientInterface, "com.outr.hookup.client")
+    verifyAnnotation(serverInterface, "com.outr.hookup.server")
+
     def notImplemented = context.Expr[I with HookupSupport](q"""throw new RuntimeException("No implementation found!")""")
     val clientImplementation = clientInterface.map(t => create[I](context)(i, List(t.asClass.selfType), Nil)).getOrElse(notImplemented)
     val serverImplementation = serverInterface.map(t => create[I](context)(i, List(t.asClass.selfType), Nil)).getOrElse(notImplemented)

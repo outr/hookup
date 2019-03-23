@@ -65,7 +65,6 @@ class HookupSpec extends AsyncWordSpec with Matchers {
       }
     }
   }
-  // TODO: add @server and @client validations at compile-time
   // TODO: add testing of exception handling
   // TODO: support multiple Hookup implementations via HookupManager
   // TODO: add `channel[T]` to stream content without response
