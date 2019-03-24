@@ -10,14 +10,17 @@ import scribe.Execution.global
 import scala.util.{Failure, Success}
 
 trait HookupSupport extends HookupIO {
+  private var _disposed: Boolean = false
+  private val idGenerator = new AtomicLong(0L)
+  private var callbacks = Map.empty[Long, Promise[Json]]
+
   def interfaceName: String
+  def disposed: Boolean = _disposed
 
   /**
     * Locally defined methods that can be invoked remotely
     */
   def callables: Map[String, HookupCallable]
-  private val idGenerator = new AtomicLong(0L)
-  private var callbacks = Map.empty[Long, Promise[Json]]
 
   io.input.attach { json =>
     val id = (json \\ "id").head.asNumber.get.toLong.get
@@ -78,11 +81,20 @@ trait HookupSupport extends HookupIO {
   }
 
   protected def remoteInvoke(name: String, params: Json): Future[Json] = synchronized {
+    assert(!disposed, "Hookup is disposed")
     val id = idGenerator.incrementAndGet()
     val promise = Promise[Json]
     callbacks += id -> promise
     io.output := HookupSupport.invoke(id, name, params)
     promise.future
+  }
+
+  def dispose(): Unit = synchronized {
+    _disposed = true
+    callbacks.values.foreach { promise =>
+      promise.failure(HookupException("Disposed", "Disposal"))
+    }
+    callbacks = Map.empty
   }
 }
 

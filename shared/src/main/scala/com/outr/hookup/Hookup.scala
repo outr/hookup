@@ -3,8 +3,8 @@ package com.outr.hookup
 import scala.language.experimental.macros
 
 trait Hookup extends HookupIO {
-  private var _callables = Map.empty[String, HookupIO]
-  def callables: Map[String, HookupIO] = _callables
+  private var _callables = Map.empty[String, HookupSupport]
+  def callables: Map[String, HookupSupport] = _callables
 
   def isClient: Boolean
   def isServer: Boolean = !isClient
@@ -28,6 +28,10 @@ trait Hookup extends HookupIO {
   protected def create[I, T]: I with HookupSupport = macro HookupMacros.oneInterface[I, T]
   protected def create[I](implementation: I): I with HookupSupport = macro HookupMacros.oneImplementation[I]
   protected def auto[I]: I with HookupSupport = macro HookupMacros.auto[I]
+
+  def dispose(): Unit = {
+    callables.values.toList.distinct.foreach(_.dispose())
+  }
 }
 
 object Hookup {

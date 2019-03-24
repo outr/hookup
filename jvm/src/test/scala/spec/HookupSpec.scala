@@ -99,7 +99,6 @@ class HookupSpec extends AsyncWordSpec with Matchers {
       }
     }
   }
-  // TODO: add disposal of Hookup
   // TODO: support multiple Hookup implementations via HookupManager
   // TODO: add `channel[T]` to stream content without response
   // TODO: add `prop[T]` to transfer state
