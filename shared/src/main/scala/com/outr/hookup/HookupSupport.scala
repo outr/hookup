@@ -27,11 +27,18 @@ trait HookupSupport extends HookupIO {
         val params = (json \\ "params").head
         callables.get(name) match {
           case Some(callable) => {
-            callable.call(params).onComplete {
-              case Success(value) => io.output := HookupSupport.response(id, name, value)
-              case Failure(throwable) => {
-                scribe.error(s"Error while invoking $interfaceName.$name", throwable)
-                io.output := HookupSupport.error(id, name, Option(throwable.getMessage).getOrElse("Error"), throwable.getClass.getName)
+            try {
+              callable.call(params).onComplete {
+                case Success(value) => io.output := HookupSupport.response(id, name, value)
+                case Failure(throwable) => {
+                  scribe.error(s"Error while invoking $interfaceName.$name", throwable)
+                  io.output := HookupSupport.error(id, name, Option(throwable.getMessage).getOrElse("Error"), throwable.getClass.getName)
+                }
+              }
+            } catch {
+              case t: Throwable => {
+                scribe.error(s"Error while invoking $interfaceName.$name", t)
+                io.output := HookupSupport.error(id, name, Option(t.getMessage).getOrElse("Error"), t.getClass.getName)
               }
             }
           }
@@ -62,7 +69,7 @@ trait HookupSupport extends HookupIO {
             HookupSupport.this.synchronized {
               callbacks -= id
             }
-            callback.failure(throw HookupException(message, errorType))
+            callback.failure(HookupException(message, errorType))
           }
           case None => throw new RuntimeException(s"No callback found for $json")
         }

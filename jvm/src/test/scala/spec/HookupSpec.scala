@@ -1,8 +1,6 @@
 package spec
 
-import java.util.UUID
-
-import com.outr.hookup.{Hookup, HookupSupport, server}
+import com.outr.hookup.{Hookup, HookupException, HookupSupport, server}
 import org.scalatest.{AsyncWordSpec, Matchers}
 
 import scala.concurrent.Future
@@ -64,8 +62,44 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         }
       }
     }
+    "test HookupException on missing end-point" in {
+      trait ClientInterface1 extends Hookup {
+        val interface1: TestInterface1 with HookupSupport = create[TestInterface1]
+      }
+      trait ServerInterface1 extends Hookup {
+        val interface1: TestInterface1 = create[TestInterface1]
+      }
+      val client = Hookup.client[ClientInterface1]
+      val server = Hookup.server[ServerInterface1, String]
+      val serverInstance = server("test1")
+
+      Hookup.connect.direct(client, serverInstance)
+      recoverToExceptionIf[HookupException] {
+        client.interface1.reverse("This is a test!")
+      }.map { exc =>
+        exc.getMessage should be("No callable found for: spec.TestInterface1.reverse")
+      }
+    }
+    "test HookupException on exception thrown from implementation" in {
+      trait ClientInterface1 extends Hookup {
+        val interface1: TestInterface1 with HookupSupport = create[TestInterface1]
+      }
+      trait ServerInterface1 extends Hookup {
+        val interface1: TestInterface1 = create[TestInterface1](Test1Fail)
+      }
+      val client = Hookup.client[ClientInterface1]
+      val server = Hookup.server[ServerInterface1, String]
+      val serverInstance = server("test1")
+
+      Hookup.connect.direct(client, serverInstance)
+      recoverToExceptionIf[HookupException] {
+        client.interface1.reverse("This is a test!")
+      }.map { exc =>
+        exc.getMessage should be("Reverse failed!")
+      }
+    }
   }
-  // TODO: add testing of exception handling
+  // TODO: add disposal of Hookup
   // TODO: support multiple Hookup implementations via HookupManager
   // TODO: add `channel[T]` to stream content without response
   // TODO: add `prop[T]` to transfer state
@@ -85,6 +119,12 @@ object Test1 extends TestInterface1 {
   override def createUser(name: String, age: Int, city: Option[String]): Future[User] = Future.successful {
     User(name, age, city)
   }
+}
+
+object Test1Fail extends TestInterface1 {
+  override def reverse(value: String): Future[String] = throw new RuntimeException("Reverse failed!")
+
+  override def createUser(name: String, age: Int, city: Option[String]): Future[User] = throw new RuntimeException("Create User failed!")
 }
 
 case class User(name: String, age: Int, city: Option[String])
