@@ -9,6 +9,7 @@ trait HookupServer[H <: Hookup, Key] {
       case None => {
         val h = create()
         cache += key -> h
+        HookupManager.register(key, h)
         h
       }
     }

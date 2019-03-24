@@ -9,6 +9,12 @@ trait Hookup extends HookupIO {
   def isClient: Boolean
   def isServer: Boolean = !isClient
 
+  def hasInterface(interfaceName: String): Boolean = callables.contains(interfaceName)
+
+  if (isClient) {
+    HookupManager.register(this)
+  }
+
   io.input.attach { json =>
     val method = (json \\ "name").head.asString.get
     val interfaceName = method.substring(0, method.lastIndexOf('.'))
@@ -30,6 +36,7 @@ trait Hookup extends HookupIO {
   protected def auto[I]: I with HookupSupport = macro HookupMacros.auto[I]
 
   def dispose(): Unit = {
+    HookupManager.remove(this)
     callables.values.toList.distinct.foreach(_.dispose())
   }
 }
