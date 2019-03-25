@@ -1,5 +1,7 @@
 package com.outr.hookup
 
+import reactify.Channel
+
 import scala.annotation.compileTimeOnly
 import scala.concurrent.Future
 import scala.reflect.macros.blackbox
@@ -113,6 +115,29 @@ object HookupMacros {
     val instance = context.prefix.tree
     val expr = create[I](context)(i, Nil, List(implementation.tree))
     context.Expr[I with HookupSupport](q"$instance.register($expr)")
+  }
+
+  def channel[I](context: blackbox.Context)(i: context.WeakTypeTag[I]): context.Expr[Channel[I]] = {
+    import context.universe._
+
+    val name = context.freshName("channel")
+    val channel = q"""
+       import _root_.com.outr.hookup._
+       import _root_.io.circe._
+       import _root_.io.circe.generic.auto._
+       import _root_.io.circe.syntax._
+       import _root_.reactify.Channel
+
+       val channel = new HookupChannel[$i](
+         hookup = ${context.prefix.tree},
+         name = $name,
+         encoder = implicitly[Encoder[$i]],
+         decoder = implicitly[Decoder[$i]]
+       )
+       channels += channel.tuple
+       channel
+     """
+    context.Expr[Channel[I]](channel)
   }
 
   def create[I](context: blackbox.Context)

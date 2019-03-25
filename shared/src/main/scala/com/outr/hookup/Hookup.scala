@@ -1,10 +1,15 @@
 package com.outr.hookup
 
+import io.circe.Json
+import reactify.Channel
+
 import scala.language.experimental.macros
 
 trait Hookup extends HookupIO {
   private var _callables = Map.empty[String, HookupSupport]
   def callables: Map[String, HookupSupport] = _callables
+
+  protected var channels = Map.empty[String, Json => Unit]
 
   def isClient: Boolean
   def isServer: Boolean = !isClient
@@ -16,11 +21,33 @@ trait Hookup extends HookupIO {
   }
 
   io.input.attach { json =>
-    val method = (json \\ "name").head.asString.get
-    val interfaceName = method.substring(0, method.lastIndexOf('.'))
-    callables.get(interfaceName) match {
-      case Some(hookupIO) => hookupIO.io.input := json
-      case None => throw new RuntimeException(s"No interface mapping found for: $interfaceName ($json) (keys: ${callables.keySet})")
+    val `type` = (json \\ "type").head.asString.get
+    val name = (json \\ "name").head.asString.get
+    `type` match {
+      case HookupSupport.`type`.Channel => {
+        val name = (json \\ "name").head.asString.get
+        val value = (json \\ "value").head
+        channels.get(name) match {
+          case Some(caller) => {
+            try {
+              caller(value)
+            } catch {
+              case t: Throwable => scribe.error(s"Error while invoking callable $name", t)
+            }
+          }
+          case None => {
+            val message = s"No callable channel found for: $name"
+            scribe.error(message)
+          }
+        }
+      }
+      case _ => {
+        val interfaceName = name.substring(0, name.lastIndexOf('.'))
+        callables.get(interfaceName) match {
+          case Some(hookupIO) => hookupIO.io.input := json
+          case None => throw new RuntimeException(s"No interface mapping found for: $interfaceName ($json) (keys: ${callables.keySet})")
+        }
+      }
     }
   }
 
@@ -34,6 +61,7 @@ trait Hookup extends HookupIO {
   protected def create[I, T]: I with HookupSupport = macro HookupMacros.oneInterface[I, T]
   protected def create[I](implementation: I): I with HookupSupport = macro HookupMacros.oneImplementation[I]
   protected def auto[I]: I with HookupSupport = macro HookupMacros.auto[I]
+  protected def channel[I]: Channel[I] = macro HookupMacros.channel[I]
 
   def dispose(): Unit = {
     HookupManager.remove(this)

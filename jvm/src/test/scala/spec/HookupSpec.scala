@@ -2,8 +2,9 @@ package spec
 
 import com.outr.hookup.{Hookup, HookupException, HookupSupport, server}
 import org.scalatest.{AsyncWordSpec, Matchers}
+import reactify.Channel
 
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
 
 class HookupSpec extends AsyncWordSpec with Matchers {
   "Interface" should {
@@ -98,9 +99,23 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         exc.getMessage should be("Reverse failed!")
       }
     }
+    "test channel support" in {
+      trait Interface extends Hookup {
+        val greeting: Channel[String] = channel[String]
+      }
+      val i1 = Hookup.client[Interface]
+      val i2 = Hookup.client[Interface]
+      Hookup.connect.direct(i1, i2)
+      val promise = Promise[String]
+      i2.greeting.attach { value =>
+        promise.success(value)
+      }
+      i1.greeting := "Hello, World!"
+      promise.future.map { result =>
+        result should be("Hello, World!")
+      }
+    }
   }
-  // TODO: support multiple Hookup implementations via HookupManager
-  // TODO: add `channel[T]` to stream content without response
   // TODO: add `prop[T]` to transfer state
   // TODO: support idempotent calls
   // TODO: support queueing and resending - receipt message?

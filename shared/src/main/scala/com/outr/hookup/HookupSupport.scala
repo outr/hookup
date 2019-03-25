@@ -34,13 +34,13 @@ trait HookupSupport extends HookupIO {
               callable.call(params).onComplete {
                 case Success(value) => io.output := HookupSupport.response(id, name, value)
                 case Failure(throwable) => {
-                  scribe.error(s"Error while invoking $interfaceName.$name", throwable)
+                  scribe.error(s"Error while invoking $interfaceName.$name")
                   io.output := HookupSupport.error(id, name, Option(throwable.getMessage).getOrElse("Error"), throwable.getClass.getName)
                 }
               }
             } catch {
               case t: Throwable => {
-                scribe.error(s"Error while invoking $interfaceName.$name", t)
+                scribe.error(s"Error while invoking $interfaceName.$name: ${t.getMessage}")
                 io.output := HookupSupport.error(id, name, Option(t.getMessage).getOrElse("Error"), t.getClass.getName)
               }
             }
@@ -103,6 +103,7 @@ object HookupSupport {
     val Invoke = "invoke"
     val Response = "response"
     val Error = "error"
+    val Channel = "channel"
   }
 
   def invoke(id: Long, name: String, params: Json): Json = Json.obj(
@@ -125,5 +126,12 @@ object HookupSupport {
     "type" -> Json.fromString(HookupSupport.`type`.Error),
     "message" -> Json.fromString(message),
     "errorType" -> Json.fromString(errorType)
+  )
+
+  def channel(id: Long, name: String, value: Json): Json = Json.obj(
+    "id" -> Json.fromLong(id),
+    "name" -> Json.fromString(name),
+    "type" -> Json.fromString(HookupSupport.`type`.Channel),
+    "value" -> value
   )
 }
