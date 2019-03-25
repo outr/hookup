@@ -1,7 +1,7 @@
 package com.outr.hookup
 
 import io.circe.Json
-import reactify.Channel
+import reactify.{Channel, Var}
 
 import scala.language.experimental.macros
 
@@ -62,6 +62,7 @@ trait Hookup extends HookupIO {
   protected def create[I](implementation: I): I with HookupSupport = macro HookupMacros.oneImplementation[I]
   protected def auto[I]: I with HookupSupport = macro HookupMacros.auto[I]
   protected def channel[I]: Channel[I] = macro HookupMacros.channel[I]
+  protected def prop[I](initialValue: => I): Var[I] = macro HookupMacros.prop[I]
 
   def dispose(): Unit = {
     HookupManager.remove(this)

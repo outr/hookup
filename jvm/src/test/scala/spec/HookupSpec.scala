@@ -2,7 +2,7 @@ package spec
 
 import com.outr.hookup.{Hookup, HookupException, HookupSupport, server}
 import org.scalatest.{AsyncWordSpec, Matchers}
-import reactify.Channel
+import reactify.{Channel, Var}
 
 import scala.concurrent.{Future, Promise}
 
@@ -115,8 +115,36 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         result should be("Hello, World!")
       }
     }
+    "test prop support" in {
+      trait Interface extends Hookup {
+        val greeting: Var[String] = prop[String]("")
+      }
+      val i1 = Hookup.client[Interface]
+      val i2 = Hookup.client[Interface]
+      Hookup.connect.direct(i1, i2)
+      val promise1 = Promise[String]
+      val promise2 = Promise[String]
+      i2.greeting.attach { value =>
+        if (!promise1.isCompleted) promise1.success(value)
+      }
+      i1.greeting := "Hello, World!"
+      promise1.future.flatMap { result =>
+        result should be("Hello, World!")
+        i1.greeting() should be("Hello, World!")
+        i2.greeting() should be("Hello, World!")
+
+        i1.greeting.attach { value =>
+          promise2.success(value)
+        }
+        i2.greeting := "Goodbye, World!"
+        promise2.future.map { result =>
+          result should be("Goodbye, World!")
+          i1.greeting() should be("Goodbye, World!")
+          i2.greeting() should be("Goodbye, World!")
+        }
+      }
+    }
   }
-  // TODO: add `prop[T]` to transfer state
   // TODO: support idempotent calls
   // TODO: support queueing and resending - receipt message?
 }
