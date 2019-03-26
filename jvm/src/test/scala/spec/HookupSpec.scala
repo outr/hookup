@@ -145,8 +145,6 @@ class HookupSpec extends AsyncWordSpec with Matchers {
       }
     }
   }
-  // TODO: support idempotent calls
-  // TODO: support queueing and resending - receipt message?
 }
 
 trait TestInterface1 {

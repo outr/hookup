@@ -75,6 +75,11 @@ object Hookup {
   def server[H <: Hookup, Key]: HookupServer[H, Key] = macro HookupMacros.createServer[H, Key]
 
   object connect {
+    def queue(hookup: HookupIO): HookupQueue = {
+      val queue = new HookupQueue
+      hookup.io.output.attach(queue += _)
+      queue
+    }
     def direct(first: HookupIO, second: HookupIO): Unit = {
       first.io.output.attach { json =>
         second.io.input := json
