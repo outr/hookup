@@ -196,29 +196,19 @@ object HookupMacros {
       val argTypes = args.map { arg =>
         arg.typeSignature.resultType
       }
-      val params = args.zipWithIndex.map {
-        case (_, index) => q"params.${TermName(s"_${index + 1}")}"
-      }
+      val argNames = args.map(_.name.toTermName)
       val prefix = if (useThis) q"this.$m" else q"$m"
-      val invoke = if (argTypes.isEmpty) {
-        q"$prefix()"
-      } else if (argTypes.tail.isEmpty) {
-        q"""
-           val param: ${argTypes.head} = implicitly[Decoder[${argTypes.head}]].decodeJson(json) match {
-             case Left(failure) => throw new RuntimeException("Failed to decode from $$response", failure)
-             case Right(value) => value
-           }
-           $prefix(param)
-         """
-      } else {
-        q"""
-           val params: (..$argTypes) = implicitly[Decoder[(..$argTypes)]].decodeJson(json) match {
-             case Left(failure) => throw new RuntimeException("Failed to decode from $$response", failure)
-             case Right(value) => value
-           }
-           $prefix(..$params)
-         """
+      val call = argNames.zip(argTypes).map {
+        case (n, t) =>
+          val name = n.decodedName.toString
+          q"""
+             $n = (implicitly[Decoder[$t]].decodeJson((json \\ $name).head) match {
+               case Left(failure) => throw new RuntimeException("Failed to decode from $$response", failure)
+               case Right(value) => value
+             })
+           """
       }
+      val invoke = q"$prefix(..$call)"
       val name = s"$interfaceName.${m.name}"
       q"""
         ($name, HookupCallable(${m.name.toString}, json => {
@@ -236,12 +226,15 @@ object HookupMacros {
       val argTypes = args.map { arg =>
         arg.typeSignature.resultType
       }
+      val jsonify = argNames.map { n =>
+        q"${n.decodedName.toString} -> $n.asJson"
+      }
       val params = argNames.zip(argTypes).map {
         case (n, t) => q"$n: $t"
       }
       q"""
          override def ${m.name.toTermName}(..$params): ${m.typeSignature.resultType} = {
-           val params: _root_.io.circe.Json = (..$argNames).asJson
+           val params: _root_.io.circe.Json = Json.obj(..$jsonify)
            remoteInvoke(${m.fullName}, params).map { response =>
              implicitly[Decoder[${m.typeSignature.resultType.typeArgs.head}]].decodeJson(response) match {
                case Left(failure) => throw new RuntimeException("Failed to decode from $$response", failure)

@@ -1,6 +1,7 @@
 package spec
 
 import com.outr.hookup._
+import io.circe.Json
 import org.scalatest.{AsyncWordSpec, BeforeAndAfterEach, Matchers}
 import reactify.{Channel, Var}
 import scribe.format.Formatter
@@ -12,6 +13,23 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
     "set up logging" in {
       scribe.Logger.root.clearHandlers().withHandler(Formatter.enhanced, minimumLevel = Some(scribe.Level.Info)).replace()
       succeed
+    }
+    "set up a Hookup instance and test the expected parameter values" in {
+      trait ClientInterface1 extends Hookup {
+        val interface1: TestInterface1 with HookupSupport = create[TestInterface1]
+      }
+      val client = Hookup.client[ClientInterface1]
+      val promise = Promise[Json]
+      client.io.output.attach(promise.success)
+      client.interface1.createUser("John Doe", 21, None)
+      promise.future.map { json =>
+        val params = (json \\ "params").head
+        params should be(Json.obj(
+          "name" -> Json.fromString("John Doe"),
+          "age" -> Json.fromInt(21),
+          "city" -> Json.Null
+        ))
+      }
     }
     "set up a Hookup instance with interface and implementation" in {
       trait ClientInterface1 extends Hookup {
