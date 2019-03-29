@@ -1,4 +1,4 @@
-import sbtcrossproject.CrossPlugin.autoImport.crossProject
+import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 name := "hookup"
 organization in ThisBuild := "com.outr"
@@ -31,7 +31,8 @@ val reactifyVersion = "3.0.3"
 val scalacticVersion = "3.0.5"
 val scalaTestVersion = "3.0.5"
 
-lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
+lazy val hookup = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
   .settings(
     name := "hookup",
     resolvers += "Artima Maven Repository" at "http://repo.artima.com/releases",
@@ -47,6 +48,3 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
   .jsSettings(
     test := {}
   )
-
-lazy val js = root.js
-lazy val jvm = root.jvm
