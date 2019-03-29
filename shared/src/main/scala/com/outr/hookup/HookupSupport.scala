@@ -38,20 +38,20 @@ trait HookupSupport extends HookupIO {
                 callable.call(params).onComplete {
                   case Success(value) => io.output := HookupSupport.response(id, name, value)
                   case Failure(throwable) => {
-                    scribe.error(s"Error while invoking $interfaceName.$name")
+                    scribe.debug(s"Error while invoking $interfaceName.$name")
                     io.output := HookupSupport.error(id, name, Option(throwable.getMessage).getOrElse("Error"), throwable.getClass.getName)
                   }
                 }
               } catch {
                 case t: Throwable => {
-                  scribe.error(s"Error while invoking $interfaceName.$name: ${t.getMessage}")
+                  scribe.debug(s"Error while invoking $interfaceName.$name: ${t.getMessage}")
                   io.output := HookupSupport.error(id, name, Option(t.getMessage).getOrElse("Error"), t.getClass.getName)
                 }
               }
             }
             case None => {
               val message = s"No callable found for: $name"
-              scribe.error(message)
+              scribe.debug(message)
               io.output := HookupSupport.error(id, name, message, "NoCallable")
             }
           }
@@ -60,13 +60,13 @@ trait HookupSupport extends HookupIO {
           val response = (json \\ "response").head
           callbacks.get(id) match {
             case Some(callback) => {
-              scribe.info(s"Found callback with $id ($interfaceName)")
+              scribe.debug(s"Found callback with $id ($interfaceName)")
               HookupSupport.this.synchronized {
                 callbacks -= id
               }
               callback.success(response)
             }
-            case None => scribe.warn(s"$interfaceName ($this): No callback found for $json (${callbacks.keySet})")
+            case None => scribe.debug(s"$interfaceName ($this): No callback found for $json (${callbacks.keySet})")
           }
         }
         case HookupSupport.`type`.Error => {
@@ -74,7 +74,6 @@ trait HookupSupport extends HookupIO {
           val errorType: String = (json \\ "errorType").head.asString.get
           callbacks.get(id) match {
             case Some(callback) => {
-              scribe.info("FAILURE!")
               HookupSupport.this.synchronized {
                 callbacks -= id
               }
@@ -92,13 +91,12 @@ trait HookupSupport extends HookupIO {
     val id = idGenerator.incrementAndGet()
     val promise = Promise[Json]
     callbacks += id -> promise
-    scribe.info(s"RemoteInvoke: $name / $id: $this (${callbacks.keySet})")
+    scribe.debug(s"RemoteInvoke: $name / $id: $this (${callbacks.keySet})")
     io.output := HookupSupport.invoke(id, name, params)
     promise.future
   }
 
   def dispose(): Unit = synchronized {
-    scribe.info("DISPOSE!")
     _disposed = true
     callbacks.values.foreach { promise =>
       promise.failure(HookupException("Disposed", "Disposal"))
