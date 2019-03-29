@@ -7,12 +7,15 @@ import io.circe.Json
 import scala.concurrent.{Future, Promise}
 import scribe.Execution.global
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Random, Success}
 
 trait HookupSupport extends HookupIO {
+  private val id = Random.nextLong()
   private var _disposed: Boolean = false
   private val idGenerator = new AtomicLong(0L)
   private var callbacks = Map.empty[Long, Promise[Json]]
+
+  init()
 
   def interfaceName: String
   def disposed: Boolean = _disposed
@@ -22,59 +25,63 @@ trait HookupSupport extends HookupIO {
     */
   def callables: Map[String, HookupCallable]
 
-  io.input.attach { json =>
-    val id = (json \\ "id").head.asNumber.get.toLong.get
-    (json \\ "type").head.asString.get match {
-      case HookupSupport.`type`.Invoke => {
-        val name = (json \\ "name").head.asString.get
-        val params = (json \\ "params").head
-        callables.get(name) match {
-          case Some(callable) => {
-            try {
-              callable.call(params).onComplete {
-                case Success(value) => io.output := HookupSupport.response(id, name, value)
-                case Failure(throwable) => {
-                  scribe.error(s"Error while invoking $interfaceName.$name")
-                  io.output := HookupSupport.error(id, name, Option(throwable.getMessage).getOrElse("Error"), throwable.getClass.getName)
+  private def init(): Unit = {
+    io.input.attach { json =>
+      val id = (json \\ "id").head.asNumber.get.toLong.get
+      (json \\ "type").head.asString.get match {
+        case HookupSupport.`type`.Invoke => {
+          val name = (json \\ "name").head.asString.get
+          val params = (json \\ "params").head
+          callables.get(name) match {
+            case Some(callable) => {
+              try {
+                callable.call(params).onComplete {
+                  case Success(value) => io.output := HookupSupport.response(id, name, value)
+                  case Failure(throwable) => {
+                    scribe.error(s"Error while invoking $interfaceName.$name")
+                    io.output := HookupSupport.error(id, name, Option(throwable.getMessage).getOrElse("Error"), throwable.getClass.getName)
+                  }
+                }
+              } catch {
+                case t: Throwable => {
+                  scribe.error(s"Error while invoking $interfaceName.$name: ${t.getMessage}")
+                  io.output := HookupSupport.error(id, name, Option(t.getMessage).getOrElse("Error"), t.getClass.getName)
                 }
               }
-            } catch {
-              case t: Throwable => {
-                scribe.error(s"Error while invoking $interfaceName.$name: ${t.getMessage}")
-                io.output := HookupSupport.error(id, name, Option(t.getMessage).getOrElse("Error"), t.getClass.getName)
+            }
+            case None => {
+              val message = s"No callable found for: $name"
+              scribe.error(message)
+              io.output := HookupSupport.error(id, name, message, "NoCallable")
+            }
+          }
+        }
+        case HookupSupport.`type`.Response => {
+          val response = (json \\ "response").head
+          callbacks.get(id) match {
+            case Some(callback) => {
+              scribe.info(s"Found callback with $id ($interfaceName)")
+              HookupSupport.this.synchronized {
+                callbacks -= id
               }
+              callback.success(response)
             }
-          }
-          case None => {
-            val message = s"No callable found for: $name"
-            scribe.error(message)
-            io.output := HookupSupport.error(id, name, message, "NoCallable")
+            case None => scribe.warn(s"$interfaceName ($this): No callback found for $json (${callbacks.keySet})")
           }
         }
-      }
-      case HookupSupport.`type`.Response => {
-        val response = (json \\ "response").head
-        callbacks.get(id) match {
-          case Some(callback) => {
-            HookupSupport.this.synchronized {
-              callbacks -= id
+        case HookupSupport.`type`.Error => {
+          val message = (json \\ "message").head.asString.get
+          val errorType: String = (json \\ "errorType").head.asString.get
+          callbacks.get(id) match {
+            case Some(callback) => {
+              scribe.info("FAILURE!")
+              HookupSupport.this.synchronized {
+                callbacks -= id
+              }
+              callback.failure(HookupException(message, errorType))
             }
-            callback.success(response)
+            case None => throw new RuntimeException(s"No callback found for $json")
           }
-          case None => scribe.warn(s"No callback found for $json")
-        }
-      }
-      case HookupSupport.`type`.Error => {
-        val message = (json \\ "message").head.asString.get
-        val errorType: String = (json \\ "errorType").head.asString.get
-        callbacks.get(id) match {
-          case Some(callback) => {
-            HookupSupport.this.synchronized {
-              callbacks -= id
-            }
-            callback.failure(HookupException(message, errorType))
-          }
-          case None => throw new RuntimeException(s"No callback found for $json")
         }
       }
     }
@@ -85,17 +92,21 @@ trait HookupSupport extends HookupIO {
     val id = idGenerator.incrementAndGet()
     val promise = Promise[Json]
     callbacks += id -> promise
+    scribe.info(s"RemoteInvoke: $name / $id: $this (${callbacks.keySet})")
     io.output := HookupSupport.invoke(id, name, params)
     promise.future
   }
 
   def dispose(): Unit = synchronized {
+    scribe.info("DISPOSE!")
     _disposed = true
     callbacks.values.foreach { promise =>
       promise.failure(HookupException("Disposed", "Disposal"))
     }
     callbacks = Map.empty
   }
+
+  override def toString: String = s"${getClass.getName}.$id"
 }
 
 object HookupSupport {

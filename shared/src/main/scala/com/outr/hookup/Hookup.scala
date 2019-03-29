@@ -80,12 +80,28 @@ object Hookup {
       hookup.io.output.attach(queue += _)
       queue
     }
-    def direct(first: HookupIO, second: HookupIO): Unit = {
-      first.io.output.attach { json =>
+    def direct(first: HookupIO, second: HookupIO): Disconnectable = {
+      val r1 = first.io.output.attach { json =>
         second.io.input := json
       }
-      second.io.output.attach { json =>
+      val r2 = second.io.output.attach { json =>
         first.io.input := json
+      }
+      new Disconnectable {
+        override def disconnect(): Unit = {
+          first.io.output.reactions -= r1
+          second.io.output.reactions -= r2
+        }
+      }
+    }
+    def log(hios: (String, HookupIO)*): Unit = hios.foreach {
+      case (name, hio) => {
+        hio.io.input.attach { json =>
+          scribe.info(s"[$name] ${hio.getClass.getSimpleName} input: $json")
+        }
+        hio.io.output.attach { json =>
+          scribe.info(s"[$name] ${hio.getClass.getSimpleName} output: $json")
+        }
       }
     }
   }

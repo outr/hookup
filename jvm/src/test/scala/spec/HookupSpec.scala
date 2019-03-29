@@ -1,13 +1,18 @@
 package spec
 
-import com.outr.hookup.{Hookup, HookupException, HookupSupport, server}
-import org.scalatest.{AsyncWordSpec, Matchers}
+import com.outr.hookup._
+import org.scalatest.{AsyncWordSpec, BeforeAndAfterEach, Matchers}
 import reactify.{Channel, Var}
+import scribe.format.Formatter
 
 import scala.concurrent.{Future, Promise}
 
-class HookupSpec extends AsyncWordSpec with Matchers {
+class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
   "Interface" should {
+    "set up logging" in {
+      scribe.Logger.root.clearHandlers().withHandler(Formatter.enhanced, minimumLevel = Some(scribe.Level.Info)).replace()
+      succeed
+    }
     "set up a Hookup instance with interface and implementation" in {
       trait ClientInterface1 extends Hookup {
         val interface1: TestInterface1 with HookupSupport = create[TestInterface1]
@@ -63,6 +68,44 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         }
       }
     }
+    /*"properly test using HookupManager" in {
+      trait Client extends Hookup {
+        val interface: CommunicationInterface with HookupSupport = create[CommunicationInterface, ClientCommunicationInterface]
+      }
+      trait Server extends Hookup {
+        val interface: CommunicationInterface with HookupSupport = create[CommunicationInterface, ServerCommunicationInterface]
+      }
+      trait Communication extends Hookup {
+        val interface: CommunicationInterface with HookupSupport = auto[CommunicationInterface]
+      }
+
+      val client = Hookup.client[Client]
+      val server = Hookup.server[Server, String]
+      val serverInstance = server("instance1")
+      val commClient = Hookup.client[Communication]
+      val commServer = Hookup.server[Communication, String]
+      val commServerInstance = commServer("instance1")
+
+      val clientManager = HookupManager.clients
+      val serverManager = HookupManager("instance1")
+      Hookup.connect.direct(clientManager, serverManager)
+      Hookup.connect.log(
+        "clientManager" -> clientManager,
+        "serverManager" -> serverManager,
+        "client" -> client,
+        "serverInstance" -> serverInstance,
+        "commClient" -> commClient,
+        "commServerInstance" -> commServerInstance
+      )
+
+//      client.interface.reverse("Hello, World!").flatMap { result =>
+//        result should be("!dlroW ,olleH")
+
+        commClient.interface.logIn("user", "pass").map { result =>
+          result should be(true)
+        }
+//      }
+    }*/
     "test HookupException on missing end-point" in {
       trait ClientInterface1 extends Hookup {
         val interface1: TestInterface1 with HookupSupport = create[TestInterface1]
@@ -144,6 +187,10 @@ class HookupSpec extends AsyncWordSpec with Matchers {
         }
       }
     }
+  }
+
+  override protected def afterEach(): Unit = {
+    HookupManager.clear()
   }
 }
 
