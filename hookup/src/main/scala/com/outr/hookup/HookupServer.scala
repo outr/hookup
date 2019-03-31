@@ -2,6 +2,8 @@ package com.outr.hookup
 
 trait HookupServer[H <: Hookup] {
   private var cache = Map.empty[Any, H]
+  def map: Map[Any, H] = cache
+  def all: List[H] = cache.values.toList
 
   HookupServer.register(this)
 
