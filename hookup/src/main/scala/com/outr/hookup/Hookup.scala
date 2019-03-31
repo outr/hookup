@@ -72,7 +72,7 @@ trait Hookup extends HookupIO {
 
 object Hookup {
   def client[H <: Hookup]: H = macro HookupMacros.createClient[H]
-  def server[H <: Hookup, Key]: HookupServer[H, Key] = macro HookupMacros.createServer[H, Key]
+  def server[H <: Hookup]: HookupServer[H] = macro HookupMacros.createServer[H]
 
   object connect {
     def queue(hookup: HookupIO): HookupQueue = {

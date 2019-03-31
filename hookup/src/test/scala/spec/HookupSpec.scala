@@ -39,7 +39,7 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
         val interface1: TestInterface1 = create[TestInterface1](Test1)
       }
       val client = Hookup.client[ClientInterface1]
-      val server = Hookup.server[ServerInterface1, String]
+      val server = Hookup.server[ServerInterface1]
       val serverInstance = server("test1")
 
       Hookup.connect.direct(client, serverInstance)
@@ -55,7 +55,7 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
         val interface: CommunicationInterface with HookupSupport = create[CommunicationInterface, ServerCommunicationInterface]
       }
       val client = Hookup.client[Client]
-      val server = Hookup.server[Server, String]
+      val server = Hookup.server[Server]
       val serverInstance = server("instance1")
 
       Hookup.connect.direct(client, serverInstance)
@@ -69,7 +69,7 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
         val interface: CommunicationInterface with HookupSupport = auto[CommunicationInterface]
       }
       val client = Hookup.client[Communication]
-      val server = Hookup.server[Communication, String]
+      val server = Hookup.server[Communication]
       val serverInstance = server("instance1")
 
       Hookup.connect.direct(client, serverInstance)
@@ -94,7 +94,7 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
         val interface1: TestInterface1 = create[TestInterface1]
       }
       val client = Hookup.client[ClientInterface1]
-      val server = Hookup.server[ServerInterface1, String]
+      val server = Hookup.server[ServerInterface1]
       val serverInstance = server("test1")
 
       Hookup.connect.direct(client, serverInstance)
@@ -112,7 +112,7 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
         val interface1: TestInterface1 = create[TestInterface1](Test1Fail)
       }
       val client = Hookup.client[ClientInterface1]
-      val server = Hookup.server[ServerInterface1, String]
+      val server = Hookup.server[ServerInterface1]
       val serverInstance = server("test1")
 
       Hookup.connect.direct(client, serverInstance)
@@ -179,9 +179,9 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
       }
 
       val client = Hookup.client[Client]
-      Hookup.server[Server, String]
+      Hookup.server[Server]
       val commClient = Hookup.client[Communication]
-      Hookup.server[Communication, String]
+      Hookup.server[Communication]
 
       val clientManager = HookupManager.clients
       val serverManager = HookupManager("instance1", registerAllServers = true)

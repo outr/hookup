@@ -19,15 +19,15 @@ object HookupMacros {
        """)
   }
 
-  def createServer[H <: Hookup, Key](context: blackbox.Context)
-                                    (implicit h: context.WeakTypeTag[H], key: context.WeakTypeTag[Key]): context.Expr[HookupServer[H, Key]] = {
+  def createServer[H <: Hookup](context: blackbox.Context)
+                               (implicit h: context.WeakTypeTag[H]): context.Expr[HookupServer[H]] = {
     import context.universe._
 
-    context.Expr[HookupServer[H, Key]](
+    context.Expr[HookupServer[H]](
       q"""
          import _root_.com.outr.hookup._
 
-         new HookupServer[$h, $key] {
+         new HookupServer[$h] {
            override def create(): $h = new $h {
              override def isClient: Boolean = false
            }
