@@ -179,14 +179,12 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
       }
 
       val client = Hookup.client[Client]
-      val server = Hookup.server[Server, String]
-      val serverInstance = server("instance1")
+      Hookup.server[Server, String]
       val commClient = Hookup.client[Communication]
-      val commServer = Hookup.server[Communication, String]
-      val commServerInstance = commServer("instance1")
+      Hookup.server[Communication, String]
 
       val clientManager = HookupManager.clients
-      val serverManager = HookupManager("instance1")
+      val serverManager = HookupManager("instance1", registerAllServers = true)
 
       clientManager.entries.size should be(2)
       serverManager.entries.size should be(2)
@@ -207,6 +205,7 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
 
   override protected def afterEach(): Unit = {
     HookupManager.clear()
+    HookupServer.clear()
   }
 }
 
