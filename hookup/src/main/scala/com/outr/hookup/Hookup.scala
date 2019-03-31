@@ -11,6 +11,8 @@ trait Hookup extends HookupIO {
 
   protected var channels = Map.empty[String, Json => Unit]
 
+  def key: Any
+
   def isClient: Boolean
   def isServer: Boolean = !isClient
 

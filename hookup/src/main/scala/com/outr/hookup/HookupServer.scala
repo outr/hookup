@@ -11,7 +11,7 @@ trait HookupServer[H <: Hookup] {
     cache.get(key) match {
       case Some(h) => h
       case None => {
-        val h = create()
+        val h = create(key)
         cache += key -> h
         HookupManager.register(key, h)
         h
@@ -27,7 +27,7 @@ trait HookupServer[H <: Hookup] {
     cache = Map.empty
   }
 
-  protected def create(): H
+  protected def create(key: Any): H
 }
 
 object HookupServer {

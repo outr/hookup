@@ -14,6 +14,7 @@ object HookupMacros {
     context.Expr[H](
       q"""
          new $h {
+           override def key: Any = "client"
            override def isClient: Boolean = true
          }
        """)
@@ -28,7 +29,8 @@ object HookupMacros {
          import _root_.com.outr.hookup._
 
          new HookupServer[$h] {
-           override def create(): $h = new $h {
+           override def create(k: Any): $h = new $h {
+             override def key: Any = k
              override def isClient: Boolean = false
            }
          }
