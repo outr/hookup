@@ -211,7 +211,11 @@ object HookupMacros {
              })
            """
       }
-      val invoke = q"$prefix(..$call)"
+      val invoke = if (m.typeSignature.paramLists.nonEmpty) {
+        q"$prefix(..$call)"
+      } else {
+        prefix
+      }
       val name = s"$interfaceName.${m.name}"
       q"""
         ($name, HookupCallable(${m.name.toString}, json => {

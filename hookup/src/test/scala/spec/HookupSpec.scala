@@ -237,6 +237,8 @@ trait CommunicationInterface {
   @server def logIn(username: String, password: String): Future[Boolean]
 
   @server def split(value: String, char: Char): Future[List[String]]
+
+  @server def time: Future[Long]
 }
 
 trait ServerCommunicationInterface extends CommunicationInterface {
@@ -245,6 +247,8 @@ trait ServerCommunicationInterface extends CommunicationInterface {
   override def logIn(username: String, password: String): Future[Boolean] = Future.successful(true)
 
   override def split(value: String, char: Char): Future[List[String]] = Future.successful(value.split(char).toList)
+
+  override def time: Future[Long] = Future.successful(System.currentTimeMillis())
 }
 
 trait ClientCommunicationInterface extends CommunicationInterface
