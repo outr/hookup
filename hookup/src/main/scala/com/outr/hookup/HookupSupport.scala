@@ -18,6 +18,7 @@ trait HookupSupport extends HookupIO {
   init()
 
   def interfaceName: String
+  def hookup: Hookup
   def disposed: Boolean = _disposed
 
   /**

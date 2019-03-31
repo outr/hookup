@@ -77,8 +77,8 @@ object HookupMacros {
     verifyAnnotation(serverInterface, "com.outr.hookup.server")
 
     def notImplemented = context.Expr[I with HookupSupport](q"""throw new RuntimeException("No implementation found!")""")
-    val clientImplementation = clientInterface.map(t => create[I](context)(i, List(t.asClass.selfType), Nil)).getOrElse(notImplemented)
-    val serverImplementation = serverInterface.map(t => create[I](context)(i, List(t.asClass.selfType), Nil)).getOrElse(notImplemented)
+    val clientImplementation = clientInterface.map(t => create[I](context)(instance, i, List(t.asClass.selfType), Nil)).getOrElse(notImplemented)
+    val serverImplementation = serverInterface.map(t => create[I](context)(instance, i, List(t.asClass.selfType), Nil)).getOrElse(notImplemented)
     context.Expr[I with HookupSupport](
       q"""
          $instance.register(if ($instance.isClient) {
@@ -98,7 +98,7 @@ object HookupMacros {
   def simple[I](context: blackbox.Context)(implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
     import context.universe._
     val instance = context.prefix.tree
-    val expr = create[I](context)(i, Nil, Nil)
+    val expr = create[I](context)(instance, i, Nil, Nil)
     context.Expr[I with HookupSupport](q"$instance.register($expr)")
   }
 
@@ -106,7 +106,7 @@ object HookupMacros {
                         (implicit i: context.WeakTypeTag[I], t: context.WeakTypeTag[T]): context.Expr[I with HookupSupport] = {
     import context.universe._
     val instance = context.prefix.tree
-    val expr = create[I](context)(i, List(t.tpe), Nil)
+    val expr = create[I](context)(instance, i, List(t.tpe), Nil)
     context.Expr[I with HookupSupport](q"$instance.register($expr)")
   }
 
@@ -115,7 +115,7 @@ object HookupMacros {
                           (implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
     import context.universe._
     val instance = context.prefix.tree
-    val expr = create[I](context)(i, Nil, List(implementation.tree))
+    val expr = create[I](context)(instance, i, Nil, List(implementation.tree))
     context.Expr[I with HookupSupport](q"$instance.register($expr)")
   }
 
@@ -169,7 +169,8 @@ object HookupMacros {
   }
 
   def create[I](context: blackbox.Context)
-               (i: context.WeakTypeTag[I],
+               (instance: context.Tree,
+                i: context.WeakTypeTag[I],
                 interfaces: List[context.Type],
                 implementations: List[context.Tree]): context.Expr[I with HookupSupport] = {
     import context.universe._
@@ -271,6 +272,7 @@ object HookupMacros {
        import _root_.io.circe.syntax._
 
        new $i with ..$mixIns {
+         override val hookup: Hookup = $instance
          override val interfaceName: String = $interfaceName
 
          // Callables
