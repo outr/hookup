@@ -196,8 +196,12 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
       client.interface1.reverse("Hello, World!").flatMap { result =>
         result should be("!dlroW ,olleH")
 
-        commClient.interface.logIn("user", "pass").map { result =>
+        commClient.interface.logIn("user", "pass").flatMap { result =>
           result should be(true)
+
+          commClient.interface.instance.map { key =>
+            key should be("instance1")
+          }
         }
       }
     }
@@ -239,9 +243,11 @@ trait CommunicationInterface {
   @server def split(value: String, char: Char): Future[List[String]]
 
   @server def time: Future[Long]
+
+  @server def instance: Future[String]
 }
 
-trait ServerCommunicationInterface extends CommunicationInterface {
+trait ServerCommunicationInterface extends CommunicationInterface with HookupSupport {
   override def reverse(value: String): Future[String] = Future.successful(value.reverse)
 
   override def logIn(username: String, password: String): Future[Boolean] = Future.successful(true)
@@ -249,6 +255,8 @@ trait ServerCommunicationInterface extends CommunicationInterface {
   override def split(value: String, char: Char): Future[List[String]] = Future.successful(value.split(char).toList)
 
   override def time: Future[Long] = Future.successful(System.currentTimeMillis())
+
+  override def instance: Future[String] = Future.successful(hookup.key.toString)
 }
 
 trait ClientCommunicationInterface extends CommunicationInterface
