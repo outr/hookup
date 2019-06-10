@@ -77,6 +77,8 @@ object Hookup {
   def client[H <: Hookup]: H = macro HookupMacros.createClient[H]
   def server[H <: Hookup]: HookupServer[H] = macro HookupMacros.createServer[H]
 
+  val error: Channel[Throwable] = Channel[Throwable]
+
   object connect {
     def queue(hookup: HookupIO): HookupQueue = {
       val queue = new HookupQueue

@@ -39,14 +39,20 @@ trait HookupSupport extends HookupIO {
                 callable.call(params).onComplete {
                   case Success(value) => io.output := HookupSupport.response(id, name, value)
                   case Failure(throwable) => {
-                    scribe.debug(s"Error while invoking $interfaceName.$name")
-                    io.output := HookupSupport.error(id, name, Option(throwable.getMessage).getOrElse("Error"), throwable.getClass.getName)
+                    val message = s"Error while invoking $interfaceName.$name"
+                    scribe.debug(message)
+                    val `type` = throwable.getClass.getName
+                    Hookup.error := HookupException(message, `type`, Some(throwable))
+                    io.output := HookupSupport.error(id, name, Option(throwable.getMessage).getOrElse("Error"), `type`)
                   }
                 }
               } catch {
                 case t: Throwable => {
-                  scribe.debug(s"Error while invoking $interfaceName.$name: ${t.getMessage}")
-                  io.output := HookupSupport.error(id, name, Option(t.getMessage).getOrElse("Error"), t.getClass.getName)
+                  val message = s"Error while invoking $interfaceName.$name"
+                  scribe.debug(s"$message: ${t.getMessage}")
+                  val `type` = t.getClass.getName
+                  Hookup.error := HookupException(message, `type`, Some(t))
+                  io.output := HookupSupport.error(id, name, Option(t.getMessage).getOrElse("Error"), `type`)
                 }
               }
             }

@@ -1,3 +1,3 @@
 package com.outr.hookup
 
-case class HookupException(message: String, errorType: String) extends RuntimeException(message)
+case class HookupException(message: String, errorType: String, cause: Option[Throwable] = None) extends RuntimeException(s"$message ($errorType)", cause.orNull)
