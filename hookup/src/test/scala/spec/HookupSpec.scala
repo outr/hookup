@@ -101,7 +101,7 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
       recoverToExceptionIf[HookupException] {
         client.interface1.reverse("This is a test!")
       }.map { exc =>
-        exc.getMessage should be("No callable found for: spec.TestInterface1.reverse")
+        exc.getMessage should be("No callable found for: spec.TestInterface1.reverse (NoCallable)")
       }
     }
     "test HookupException on exception thrown from implementation" in {
@@ -119,7 +119,7 @@ class HookupSpec extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
       recoverToExceptionIf[HookupException] {
         client.interface1.reverse("This is a test!")
       }.map { exc =>
-        exc.getMessage should be("Reverse failed!")
+        exc.getMessage should be("Reverse failed! (java.lang.RuntimeException)")
       }
     }
     "test channel support" in {
