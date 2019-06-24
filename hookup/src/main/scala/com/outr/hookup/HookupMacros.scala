@@ -58,6 +58,10 @@ object HookupMacros {
     val clientInterface = classes.find(_.fullName.toLowerCase.contains("client"))
     val serverInterface = classes.find(_.fullName.toLowerCase.contains("server"))
 
+    if (clientInterface.isEmpty && serverInterface.isEmpty) {
+      context.error(context.enclosingPosition, s"No client or server interface was found for ${i.tpe}. Make sure your Hookup instance is defined in the same project as your client/server interface(s).")
+    }
+
     def verifyAnnotation(interface: Option[context.Symbol], annotationName: String): Unit = {
       interface.foreach { c =>
         c.typeSignature.members.toList.foreach {
@@ -76,9 +80,12 @@ object HookupMacros {
     verifyAnnotation(clientInterface, "com.outr.hookup.client")
     verifyAnnotation(serverInterface, "com.outr.hookup.server")
 
-    def notImplemented = context.Expr[I with HookupSupport](q"""throw new RuntimeException("No implementation found!")""")
-    val clientImplementation = clientInterface.map(t => create[I](context)(instance, i, List(t.asClass.selfType), Nil)).getOrElse(notImplemented)
-    val serverImplementation = serverInterface.map(t => create[I](context)(instance, i, List(t.asClass.selfType), Nil)).getOrElse(notImplemented)
+    val clientImplementation = clientInterface
+      .map(t => create[I](context)(instance, i, List(t.asClass.selfType), Nil))
+      .getOrElse(context.Expr[I with HookupSupport](q"""throw new RuntimeException("No client implementation found! " + ${classes.mkString("[", ", ", "]")} + " for package: " + $packageName)"""))
+    val serverImplementation = serverInterface
+      .map(t => create[I](context)(instance, i, List(t.asClass.selfType), Nil))
+      .getOrElse(context.Expr[I with HookupSupport](q"""throw new RuntimeException("No server implementation found! " + ${classes.mkString("[", ", ", "]")} + " for package: " + $packageName)"""))
     context.Expr[I with HookupSupport](
       q"""
          $instance.register(if ($instance.isClient) {
