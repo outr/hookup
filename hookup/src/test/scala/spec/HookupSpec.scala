@@ -2,7 +2,8 @@ package spec
 
 import com.outr.hookup._
 import io.circe.Json
-import org.scalatest.{AsyncWordSpec, BeforeAndAfterEach, Matchers}
+import org.scalatest.wordspec.AsyncWordSpec
+import org.scalatest.{BeforeAndAfterEach, Matchers}
 import reactify.{Channel, Var}
 import scribe.format.Formatter
 
