@@ -39,6 +39,11 @@ object HookupManager {
     }
   }
 
+  def remove(hookups: Hookups): Unit = synchronized {
+    hookups.clear()
+    map -= hookups
+  }
+
   def clear(): Unit = synchronized {
     map.values.foreach(_.clear())
     map = Map.empty

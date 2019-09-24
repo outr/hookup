@@ -2,9 +2,9 @@ import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 name := "hookup"
 organization in ThisBuild := "com.outr"
-version in ThisBuild := "2.0.3"
-scalaVersion in ThisBuild := "2.13.0"
-crossScalaVersions in ThisBuild := List("2.13.0", "2.12.8", "2.11.12")
+version in ThisBuild := "2.0.4-SNAPSHOT"
+scalaVersion in ThisBuild := "2.13.1"
+crossScalaVersions in ThisBuild := List("2.13.1", "2.12.8")
 resolvers in ThisBuild += Resolver.sonatypeRepo("releases")
 resolvers in ThisBuild += Resolver.sonatypeRepo("snapshots")
 scalacOptions in ThisBuild ++= Seq("-unchecked", "-deprecation", "-feature")
@@ -26,7 +26,7 @@ developers in ThisBuild := List(
 )
 
 val profigVersion = "2.3.6"
-val scribeVersion = "2.7.8"
+val scribeVersion = "2.7.10"
 val reactifyVersion = "3.0.4"
 val scalaTestVersion = "3.1.0-SNAP13"
 
