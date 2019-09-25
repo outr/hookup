@@ -43,9 +43,7 @@ object HookupManager {
     map.find(t => t._2 eq hookups).map(_._1) match {
       case Some(key) => {
         hookups.clear()
-        scribe.info(s"Removing hookups. Size: ${map.size}")
         map -= key
-        scribe.info(s"Size After: ${map.size}")
       }
       case None => scribe.warn("Hookups instance not found in HookupManager")
     }
