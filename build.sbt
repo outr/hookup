@@ -2,7 +2,7 @@ import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 name := "hookup"
 organization in ThisBuild := "com.outr"
-version in ThisBuild := "2.0.4"
+version in ThisBuild := "2.0.5-SNAPSHOT"
 scalaVersion in ThisBuild := "2.13.1"
 crossScalaVersions in ThisBuild := List("2.13.1", "2.12.8")
 resolvers in ThisBuild += Resolver.sonatypeRepo("releases")

@@ -213,7 +213,7 @@ object HookupMacros {
           val name = n.decodedName.toString
           q"""
              $n = (implicitly[Decoder[$t]].decodeJson((json \\ $name).head) match {
-               case Left(failure) => throw new RuntimeException("Failed to decode from $$response", failure)
+               case Left(failure) => throw new RuntimeException("Failed to decode from " + json, failure)
                case Right(value) => value
              })
            """
@@ -251,7 +251,7 @@ object HookupMacros {
            val params: _root_.io.circe.Json = Json.obj(..$jsonify)
            remoteInvoke(${m.fullName}, params).map { response =>
              implicitly[Decoder[${m.typeSignature.resultType.typeArgs.head}]].decodeJson(response) match {
-               case Left(failure) => throw new RuntimeException("Failed to decode from $$response", failure)
+               case Left(failure) => throw new RuntimeException("Failed to decode from " + response, failure)
                case Right(value) => value
              }
            }
