@@ -2,14 +2,14 @@ import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 name := "hookup"
 organization in ThisBuild := "com.outr"
-version in ThisBuild := "2.0.5"
+version in ThisBuild := "2.1.0-SNAPSHOT"
 scalaVersion in ThisBuild := "2.13.1"
 crossScalaVersions in ThisBuild := List("2.13.1", "2.12.8")
 resolvers in ThisBuild += Resolver.sonatypeRepo("releases")
 resolvers in ThisBuild += Resolver.sonatypeRepo("snapshots")
 scalacOptions in ThisBuild ++= Seq("-unchecked", "-deprecation", "-feature")
 
-publishTo in ThisBuild := sonatypePublishTo.value
+publishTo in ThisBuild := sonatypePublishToBundle.value
 sonatypeProfileName in ThisBuild := "com.outr"
 publishMavenStyle in ThisBuild := true
 licenses in ThisBuild := Seq("MIT" -> url("https://github.com/outr/hookup/blob/master/LICENSE"))
