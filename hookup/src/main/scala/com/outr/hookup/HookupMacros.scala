@@ -8,35 +8,6 @@ import scala.reflect.macros.blackbox
 
 @compileTimeOnly("Enable Macros for expansion")
 object HookupMacros {
-  def createClient[H <: Hookup](context: blackbox.Context)(implicit h: context.WeakTypeTag[H]): context.Expr[H] = {
-    import context.universe._
-
-    context.Expr[H](
-      q"""
-         new $h {
-           override def key: Any = "client"
-           override def isClient: Boolean = true
-         }
-       """)
-  }
-
-  def createServer[H <: Hookup](context: blackbox.Context)
-                               (implicit h: context.WeakTypeTag[H]): context.Expr[HookupServer[H]] = {
-    import context.universe._
-
-    context.Expr[HookupServer[H]](
-      q"""
-         import _root_.com.outr.hookup._
-
-         new HookupServer[$h] {
-           override def create(k: Any): $h = new $h {
-             override def key: Any = k
-             override def isClient: Boolean = false
-           }
-         }
-       """)
-  }
-
   def auto[I](context: blackbox.Context)(implicit i: context.WeakTypeTag[I]): context.Expr[I with HookupSupport] = {
     import context.universe._
 

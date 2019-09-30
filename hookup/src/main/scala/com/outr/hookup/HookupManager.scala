@@ -8,10 +8,7 @@ object HookupManager {
 
   def clients: Hookups = apply(clientId)
   def get[Key](key: Key): Option[Hookups] = map.get(key)
-  def apply[Key](key: Key, registerAllServers: Boolean = false): Hookups = synchronized {
-    if (registerAllServers) {
-      HookupServer().foreach(s => s(key))
-    }
+  def apply[Key](key: Key): Hookups = synchronized {
     scribe.debug(s"Hooking up: $key = ${get(key)}")
     get(key) match {
       case Some(h) => h
